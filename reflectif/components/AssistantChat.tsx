@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { FiMic, FiSend, FiUser, FiCpu, FiStopCircle } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { ConversationAnalysis } from "@/lib/data";
@@ -15,19 +15,23 @@ interface Message {
 
 export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
     const [messages, setMessages] = useState<Message[]>([]);
+    const [threadId, setThreadId] = useState<string | null>(null);
+    const [assistantId, setAssistantId] = useState<string | null>(null);
+    const [seeded, setSeeded] = useState(false);
+    const [inputValue, setInputValue] = useState("");
+    const [isRecording, setIsRecording] = useState(false);
+    const [isThinking, setIsThinking] = useState(false);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Initialize chat based on context
         if (messages.length === 0) {
             if (context) {
-                // Conversation Specific Observation
                 setMessages([{
                     id: "welcome",
                     role: "assistant",
                     text: `During this conversation, it would be great to observe your **${context.label}** pattern. \n\nI noticed distinct phases of ${context.dynamics.map(d => d.phase).join(" and ")}. \n\nWhat do you think triggered the shift?`
                 }]);
             } else {
-                // Global "Observe Yourself" Observation
                 setMessages([{
                     id: "welcome",
                     role: "assistant",
@@ -37,10 +41,6 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
         }
     }, [context]);
 
-    const [isRecording, setIsRecording] = useState(false);
-    const [isThinking, setIsThinking] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
@@ -49,45 +49,100 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
         scrollToBottom();
     }, [messages, isThinking]);
 
-    const toggleRecording = () => {
-        if (isRecording) {
-            // Stop recording logic
-            setIsRecording(false);
-            processUserAudio();
-        } else {
-            // Start recording
-            setIsRecording(true);
+    const seedContext = async (tId: string) => {
+        if (!context || seeded) return;
+        setSeeded(true);
+
+        const seedContent = [
+            `Conversation Analysis for "${context.label}":`,
+            `Summary: ${context.summary}`,
+            `Patterns observed: ${context.patterns.join(", ")}`,
+            `Conversation phases: ${context.dynamics.map(d => `${d.phase} (${d.mood}): ${d.reason}`).join("; ")}`,
+        ].join("\n");
+
+        try {
+            await fetch("/api/chat/seed", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ threadId: tId, content: seedContent }),
+            });
+        } catch (err) {
+            console.error("Failed to seed context:", err);
         }
     };
 
-    const processUserAudio = async () => {
+    const sendUserMessage = async (text: string) => {
+        if (!text.trim() || isThinking) return;
+
+        const userMsg: Message = {
+            id: Date.now().toString(),
+            role: "user",
+            text: text.trim(),
+        };
+        setMessages(prev => [...prev, userMsg]);
+        setInputValue("");
         setIsThinking(true);
 
-        // Simulate processing delay
-        setTimeout(() => {
-            // Add user mock message
-            const userMsg: Message = {
-                id: Date.now().toString(),
-                role: "user",
-                text: "I've been feeling a bit overwhelmed lately with work deadlines.",
-                isAudio: true
+        try {
+            const res = await fetch("/api/chat", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: text.trim(),
+                    threadId,
+                    assistantId,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || "Chat request failed");
+            }
+
+            // Persist IDs for subsequent messages
+            if (data.threadId && !threadId) {
+                setThreadId(data.threadId);
+                // Seed context on first interaction if available
+                seedContext(data.threadId);
+            }
+            if (data.assistantId && !assistantId) {
+                setAssistantId(data.assistantId);
+            }
+
+            const aiMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                role: "assistant",
+                text: data.content,
             };
-            setMessages(prev => [...prev, userMsg]);
+            setMessages(prev => [...prev, aiMsg]);
+        } catch (err) {
+            console.error("Chat error:", err);
+            const errorMsg: Message = {
+                id: (Date.now() + 1).toString(),
+                role: "assistant",
+                text: "Sorry, I had trouble responding. Please try again.",
+            };
+            setMessages(prev => [...prev, errorMsg]);
+        } finally {
+            setIsThinking(false);
+        }
+    };
 
-            // Simulate AI thinking delay
-            // TODO: API CALL - POST /api/chat
-            // Body: { message: "...", conversationAnalysisId: context?.id }
-            setTimeout(() => {
-                const aiMsg: Message = {
-                    id: (Date.now() + 1).toString(),
-                    role: "assistant",
-                    text: "I understand. Your data shows a spike in anxiety during work hours (9 AM - 5 PM) over the last 3 days. It seems like the 'Deadline Anxiety' pattern we identified is active. Would you like some strategies to manage this pressure?"
-                };
-                setMessages(prev => [...prev, aiMsg]);
-                setIsThinking(false);
-            }, 1500);
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            sendUserMessage(inputValue);
+        }
+    };
 
-        }, 1000);
+    const toggleRecording = () => {
+        if (isRecording) {
+            setIsRecording(false);
+            // TODO: integrate actual audio transcription
+        } else {
+            setIsRecording(true);
+        }
     };
 
     return (
@@ -176,11 +231,18 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
                     <div className="flex-1 relative">
                         <input
                             type="text"
-                            disabled={isRecording}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            disabled={isRecording || isThinking}
                             placeholder={isRecording ? "Listening..." : "Type a message..."}
                             className="w-full bg-white/5 border border-white/10 rounded-full px-5 py-4 focus:outline-none focus:border-violet-500/50 focus:bg-white/10 transition-all text-sm text-white placeholder:text-zinc-600 disabled:opacity-50"
                         />
-                        <button className="absolute right-2 top-2 p-2 text-zinc-500 hover:text-violet-400 transition-colors">
+                        <button
+                            onClick={() => sendUserMessage(inputValue)}
+                            disabled={!inputValue.trim() || isThinking}
+                            className="absolute right-2 top-2 p-2 text-zinc-500 hover:text-violet-400 transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
+                        >
                             <FiSend size={18} />
                         </button>
                     </div>
@@ -197,7 +259,7 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
                 )}
                 {!isRecording && (
                     <div className="text-center mt-3 text-xs text-zinc-600">
-                        Tap microphone to speak
+                        Tap microphone to speak or type a message
                     </div>
                 )}
             </div>
