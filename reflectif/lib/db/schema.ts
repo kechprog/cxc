@@ -61,4 +61,10 @@ export function initSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_chats_conversation_analysis_id ON chats(conversation_analysis_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id ON chat_messages(chat_id);
   `);
+
+  // Migrations for existing databases
+  const columns = db.pragma("table_info(users)") as { name: string }[];
+  if (!columns.some((c) => c.name === "voice_id")) {
+    db.exec(`ALTER TABLE users ADD COLUMN voice_id TEXT`);
+  }
 }

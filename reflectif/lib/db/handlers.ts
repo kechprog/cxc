@@ -62,6 +62,14 @@ export class DbHandlers {
       .run(voiceId, userId);
   }
 
+  ensureUser(id: string): void {
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO users (id, voice_id, created_at) VALUES (?, NULL, ?)`
+      )
+      .run(id, new Date().toISOString());
+  }
+
   getUser(id: string): User | null {
     const row = this.db
       .prepare(`SELECT * FROM users WHERE id = ?`)

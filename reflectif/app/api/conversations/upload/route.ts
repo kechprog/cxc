@@ -1,29 +1,26 @@
-// TODO: Replace userId form field with Auth0 session — authenticate requests
-// and derive userId from token instead of trusting client-provided value.
-
 import { processConversation } from "@/app/api/_lib/pipeline";
 import type { SpeakerAnalysis } from "@/app/api/_lib/pipeline";
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { DbHandlers } from "@/lib/db/handlers";
+import { auth0 } from "@/lib/auth0";
 import type { ConversationAnalysis } from "@/lib/types/conversation";
 import type { TranscriptMessage } from "@/lib/types/transcript";
 
 export async function POST(request: Request) {
+  const session = await auth0.getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const userId = session.user.sub;
+
   const formData = await request.formData();
   const audioFile = formData.get("audio") as File | null;
-  const userId = formData.get("userId") as string | null;
 
   if (!audioFile) {
     return NextResponse.json(
       { error: "No audio file provided" },
-      { status: 400 },
-    );
-  }
-  if (!userId) {
-    return NextResponse.json(
-      { error: "No userId provided" },
       { status: 400 },
     );
   }
