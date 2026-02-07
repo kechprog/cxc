@@ -146,9 +146,9 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
     };
 
     return (
-        <>
+        <div className="flex flex-col h-full relative">
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-4">
                 {messages.map((msg) => (
                     <motion.div
                         key={msg.id}
@@ -204,11 +204,11 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
                     </motion.div>
                 )}
 
-                <div ref={messagesEndRef} />
+                <div ref={messagesEndRef} className="h-1" />
             </div>
 
             {/* Input Area */}
-            <div className="p-6 border-t border-white/5 bg-black/40 backdrop-blur-xl absolute bottom-0 left-0 right-0">
+            <div className="p-6 border-t border-white/5 bg-black/40 backdrop-blur-xl shrink-0">
                 <div className="flex items-center gap-4 max-w-2xl mx-auto">
 
                     {/* Mic Button (Main Interaction) */}
@@ -263,6 +263,6 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
                     </div>
                 )}
             </div>
-        </>
+        </div>
     );
 }
