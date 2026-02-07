@@ -27,7 +27,8 @@ export function initSchema(db: Database.Database): void {
       emoji TEXT NOT NULL,
       label TEXT NOT NULL,
       scores TEXT NOT NULL DEFAULT '[]',
-      patterns TEXT NOT NULL DEFAULT '[]'
+      patterns TEXT NOT NULL DEFAULT '[]',
+      transcripts TEXT NOT NULL DEFAULT '[]'
     );
 
     CREATE TABLE IF NOT EXISTS conversation_phases (

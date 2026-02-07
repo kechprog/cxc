@@ -4,6 +4,7 @@ import type {
   ConversationAnalysis,
   ConversationPhase,
   ConversationEmoji,
+  TranscriptMessage,
   Chat,
   ChatMessage,
 } from "@/lib/types";
@@ -36,6 +37,7 @@ export type ConversationAnalysisRow = {
   label: string;
   scores: string; // JSON
   patterns: string; // JSON
+  transcripts: string; // JSON — TranscriptMessage[]
 };
 
 export type ConversationPhaseRow = {
@@ -109,10 +111,14 @@ export function coreUserFileToRow(
   };
 }
 
+export type ConversationAnalysisWithTranscripts = ConversationAnalysis & {
+  transcripts: TranscriptMessage[];
+};
+
 export function conversationAnalysisFromRow(
   row: ConversationAnalysisRow,
   phaseRows: ConversationPhaseRow[]
-): ConversationAnalysis {
+): ConversationAnalysisWithTranscripts {
   return {
     id: row.id,
     analyzedAt: row.analyzed_at,
@@ -122,6 +128,7 @@ export function conversationAnalysisFromRow(
     dynamics: phaseRows.map(conversationPhaseFromRow),
     scores: JSON.parse(row.scores),
     patterns: JSON.parse(row.patterns),
+    transcripts: JSON.parse(row.transcripts),
   };
 }
 

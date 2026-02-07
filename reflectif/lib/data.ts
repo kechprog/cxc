@@ -1,21 +1,14 @@
 // --- Re-export Types from strict definitions ---
 export * from "@/lib/types/conversation";
+export * from "@/lib/types/transcript";
 export * from "@/lib/types/progress";
 export * from "@/lib/types/user";
 export * from "@/lib/types/chat";
 
 import { ConversationAnalysis } from "@/lib/types/conversation";
+import { TranscriptMessage } from "@/lib/types/transcript";
 import { UserProgress } from "@/lib/types/progress";
 import { ChatListItem } from "@/lib/types/chat";
-
-// --- Legacy UI Types (to be refactored later) ---
-
-export interface TranscriptMessage {
-  role: string;
-  text: string;
-  sentiment?: string;
-  timestamp?: string;
-}
 
 export interface UserProfile {
   id: string;

@@ -10,7 +10,7 @@ import {
     ResponsiveContainer,
     Legend
 } from "recharts";
-import { MOCK_CONVERSATIONS, EMOTIONS, EMOTION_COLORS } from "@/lib/data";
+import { EMOTIONS, EMOTION_COLORS } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 const toPercent = (decimal: number, fixed = 0) => `${(decimal * 100).toFixed(fixed)}%`;
@@ -42,10 +42,10 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-export function EmotionChart({ data, className }: { data?: any[], className?: string }) {
+export function EmotionChart({ data = [], className }: { data?: any[], className?: string }) {
     // Adapter: Handle arch_v2 structure if needed
     // If data comes in as { timestamp, scores: {} }, flatten it for Recharts
-    const chartData = (data || MOCK_CONVERSATIONS[0].scores).map((point: any) => {
+    const chartData = data.map((point: any) => {
         if (point.scores) {
             return {
                 time: new Date(point.timestamp * 1000).toISOString().substr(14, 5), // Generic formatted time helper

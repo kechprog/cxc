@@ -5,6 +5,7 @@ import type {
   CoreUserFileUpdate,
   ConversationAnalysis,
   ConversationAnalysisListItem,
+  TranscriptMessage,
   Chat,
   ChatMessage,
   ChatListItem,
@@ -16,6 +17,7 @@ import {
   type ConversationPhaseRow,
   type ChatRow,
   type ChatMessageRow,
+  type ConversationAnalysisWithTranscripts,
   userFromRow,
   userToRow,
   coreUserFileFromRow,
@@ -120,11 +122,12 @@ export class DbHandlers {
 
   createConversationAnalysis(
     userId: string,
-    analysis: ConversationAnalysis
+    analysis: ConversationAnalysis,
+    transcripts: TranscriptMessage[] = []
   ): void {
     const insertAnalysis = this.db.prepare(
-      `INSERT INTO conversation_analyses (id, user_id, analyzed_at, summary, emoji, label, scores, patterns)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO conversation_analyses (id, user_id, analyzed_at, summary, emoji, label, scores, patterns, transcripts)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
 
     const insertPhase = this.db.prepare(
@@ -141,7 +144,8 @@ export class DbHandlers {
         analysis.emoji,
         analysis.label,
         JSON.stringify(analysis.scores),
-        JSON.stringify(analysis.patterns)
+        JSON.stringify(analysis.patterns),
+        JSON.stringify(transcripts)
       );
 
       for (const phase of analysis.dynamics) {
@@ -161,7 +165,7 @@ export class DbHandlers {
     run();
   }
 
-  getConversationAnalysis(id: string): ConversationAnalysis | null {
+  getConversationAnalysis(id: string): ConversationAnalysisWithTranscripts | null {
     const row = this.db
       .prepare(`SELECT * FROM conversation_analyses WHERE id = ?`)
       .get(id) as ConversationAnalysisRow | undefined;
@@ -174,6 +178,13 @@ export class DbHandlers {
       .all(id) as ConversationPhaseRow[];
 
     return conversationAnalysisFromRow(row, phaseRows);
+  }
+
+  getTranscripts(conversationId: string): TranscriptMessage[] {
+    const row = this.db
+      .prepare(`SELECT transcripts FROM conversation_analyses WHERE id = ?`)
+      .get(conversationId) as { transcripts: string } | undefined;
+    return row ? JSON.parse(row.transcripts) : [];
   }
 
   listConversationAnalyses(

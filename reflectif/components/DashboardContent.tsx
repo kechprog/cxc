@@ -1,17 +1,14 @@
 "use client";
 
 import { ConversationAnalysis } from "@/lib/types/conversation";
-import { EMOTION_COLORS, TranscriptMessage, MOCK_TRANSCRIPTS } from "@/lib/data";
+import { TranscriptMessage } from "@/lib/types";
+import { EMOTION_COLORS } from "@/lib/data";
 import { EmotionChart } from "@/components/EmotionChart";
 import { ChatTranscript } from "@/components/ChatTranscript";
 import { FiActivity, FiCheckCircle } from "react-icons/fi";
 
-export function DashboardContent({ conversation, showChatButton, onChatClick }: { conversation: ConversationAnalysis, showChatButton?: boolean, onChatClick?: () => void }) {
-
-    // Fallback: Look up transcript if not passed (though ideally it should be passed)
-    // TODO: API CALL - GET /api/conversations/:id/transcript
-    // We are temporarily extracting it from the MOCK_TRANSCRIPTS based on ID
-    const transcriptMessages = MOCK_TRANSCRIPTS[conversation.id] || [];
+export function DashboardContent({ conversation, transcript, showChatButton, onChatClick }: { conversation: ConversationAnalysis, transcript: TranscriptMessage[], showChatButton?: boolean, onChatClick?: () => void }) {
+    const transcriptMessages = transcript;
 
     return (
         <div className="space-y-8">
