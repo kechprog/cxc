@@ -38,6 +38,9 @@ reflectif/.vercel
 *.tsbuildinfo
 next-env.d.ts
 
+# python
+__pycache__/
+
 # services
 services/speaker-id/.venv
 services/speaker-id/voices.db
