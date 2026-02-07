@@ -7,6 +7,7 @@ export default function Home() {
       <RecordButton />
 
       {/* Daily Snapshot Section */}
+      {/* TODO: API CALL - GET /api/user/progress */}
       <div className="mt-4 lg:mt-8 w-full flex justify-center px-4 lg:px-0">
         <DailySnapshot />
       </div>

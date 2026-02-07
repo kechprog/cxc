@@ -75,6 +75,8 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
             setMessages(prev => [...prev, userMsg]);
 
             // Simulate AI thinking delay
+            // TODO: API CALL - POST /api/chat
+            // Body: { message: "...", conversationAnalysisId: context?.id }
             setTimeout(() => {
                 const aiMsg: Message = {
                     id: (Date.now() + 1).toString(),

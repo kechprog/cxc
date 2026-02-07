@@ -9,6 +9,7 @@ export default async function ConversationPage({
     params: Promise<{ id: string }>;
 }) {
     const { id } = await params;
+    // TODO: API CALL - GET /api/conversations/:id (Excludes Transcript)
     const conversation = MOCK_CONVERSATIONS.find((c) => c.id === id);
 
     if (!conversation) {

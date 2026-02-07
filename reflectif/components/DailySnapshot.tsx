@@ -7,6 +7,7 @@ import { EmotionChart } from "@/components/EmotionChart";
 import { MOCK_CONVERSATIONS } from "@/lib/data";
 
 // Mock data for the daily snapshot (Consider moving this to user progress mock eventually)
+// TODO: API CALL - GET /api/user/progress (or tailored endpoint for daily snapshot)
 const TODAY_DATA = {
     moodEmoji: MOCK_CONVERSATIONS[0].emoji,
     moodLabel: MOCK_CONVERSATIONS[0].label,

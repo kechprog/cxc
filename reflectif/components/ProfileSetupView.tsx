@@ -101,6 +101,7 @@ export function ProfileSetupView() {
                                         ))}
                                     </div>
                                     <p className="text-xs text-zinc-500 uppercase tracking-widest">
+                                        {/* TODO: API CALL - POST /api/profile/setup */}
                                         {step === "voice_calibration" ? "Analyzing Voiceprint..." : "Saving Profile..."}
                                     </p>
                                 </div>

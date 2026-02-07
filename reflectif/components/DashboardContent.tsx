@@ -9,6 +9,7 @@ import { FiActivity, FiCheckCircle } from "react-icons/fi";
 export function DashboardContent({ conversation, showChatButton, onChatClick }: { conversation: ConversationAnalysis, showChatButton?: boolean, onChatClick?: () => void }) {
 
     // Fallback: Look up transcript if not passed (though ideally it should be passed)
+    // TODO: API CALL - GET /api/conversations/:id/transcript
     // We are temporarily extracting it from the MOCK_TRANSCRIPTS based on ID
     const transcriptMessages = MOCK_TRANSCRIPTS[conversation.id] || [];
 
