@@ -40,6 +40,31 @@ export function Sidebar() {
                 />
             </nav>
 
+            <div className="mx-4 border-t border-white/5" />
+
+            {/* AI Assistant CTA */}
+            <div className="p-4">
+                <Link
+                    href="/assistant"
+                    className={cn(
+                        "block p-4 rounded-xl border transition-all duration-200 group text-left",
+                        pathname === "/assistant"
+                            ? "bg-violet-500/10 border-violet-500/30 shadow-[0_0_20px_rgba(139,92,246,0.1)]"
+                            : "bg-gradient-to-br from-white/5 to-white/0 border-white/10 hover:border-violet-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.1)]"
+                    )}
+                >
+                    <div className="flex items-center gap-2 mb-2 text-violet-300">
+                        <FiMessageSquare className="w-4 h-4" />
+                        <span className="text-sm font-medium tracking-wide">Progress Check-in</span>
+                    </div>
+                    <p className="text-xs text-zinc-400 leading-relaxed group-hover:text-zinc-300 transition-colors">
+                        Let's discuss changes or improvements in the last 3-4 days.
+                    </p>
+                </Link>
+            </div>
+
+            <div className="mx-4 border-t border-white/5" />
+
             {/* Recent Conversations */}
             <div className="flex-1 overflow-y-auto p-4">
                 <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">

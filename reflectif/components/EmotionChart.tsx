@@ -11,6 +11,7 @@ import {
     Legend
 } from "recharts";
 import { MOCK_EMOTION_TRENDS, EMOTIONS, EMOTION_COLORS } from "@/lib/data";
+import { cn } from "@/lib/utils";
 
 const toPercent = (decimal: number, fixed = 0) => `${(decimal * 100).toFixed(fixed)}%`;
 
@@ -41,12 +42,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-export function EmotionChart() {
+export function EmotionChart({ data = MOCK_EMOTION_TRENDS, className }: { data?: any[], className?: string }) {
     return (
-        <div className="w-full h-[500px]">
+        <div className={cn("w-full h-full", className)}>
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                    data={MOCK_EMOTION_TRENDS}
+                    data={data}
                     margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                 >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
