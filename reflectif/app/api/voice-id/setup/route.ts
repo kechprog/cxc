@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createProfile, enrollAudio } from "@/app/api/_lib/azure-speaker";
-import { setProfileId } from "@/app/api/_lib/voice-store";
+import { enrollSpeaker } from "@/app/api/_lib/speaker-id";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,23 +16,9 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await audioFile.arrayBuffer();
     const audioBuffer = Buffer.from(arrayBuffer);
 
-    const profileId = await createProfile();
+    const voiceId = await enrollSpeaker(audioBuffer);
 
-    const enrollment = await enrollAudio(profileId, audioBuffer);
-
-    if (enrollment.enrollmentStatus !== "Enrolled") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Enrollment incomplete: ${enrollment.enrollmentStatus}. Remaining speech needed: ${enrollment.remainingSpeechLength}s`,
-        },
-        { status: 422 }
-      );
-    }
-
-    setProfileId(profileId);
-
-    return NextResponse.json({ success: true, profileId });
+    return NextResponse.json({ success: true, voiceId });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(
