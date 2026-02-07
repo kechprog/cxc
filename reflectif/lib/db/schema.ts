@@ -4,7 +4,7 @@ export function initSchema(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
-      voice_embedding BLOB,
+      voice_id TEXT,
       created_at TEXT NOT NULL
     );
 

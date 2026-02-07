@@ -12,6 +12,7 @@ import type { Utterance } from "@/app/api/_lib/hume";
 
 export interface SpeakerAnalysis {
   voiceId: string | null;
+  isUser: boolean;
   displayName: string;
   utterances: Utterance[];
 }
@@ -28,7 +29,8 @@ export interface ConversationAnalysis {
  */
 export async function processConversation(
   audioBuffer: Buffer,
-  filename: string
+  filename: string,
+  userVoiceId?: string | null
 ): Promise<ConversationAnalysis> {
   // Step 1: Split speakers via AudioPod
   const { id: jobId } = await extractSpeakers(audioBuffer, filename);
@@ -74,15 +76,18 @@ export async function processConversation(
     })
   );
 
-  // Label: known voices get their voice_id as display name for now,
-  // unknown speakers get Speaker A/B/C
-  const labeled: SpeakerAnalysis[] = results.map((s) => ({
-    voiceId: s.voiceId,
-    displayName: s.voiceId
-      ? s.voiceId
-      : `Speaker ${String.fromCharCode(65 + letterIndex++)}`,
-    utterances: s.utterances,
-  }));
+  // Label speakers: user gets "You", others get Speaker A/B/C
+  const labeled: SpeakerAnalysis[] = results.map((s) => {
+    const isUser = !!(userVoiceId && s.voiceId === userVoiceId);
+    return {
+      voiceId: s.voiceId,
+      isUser,
+      displayName: isUser
+        ? "You"
+        : `Speaker ${String.fromCharCode(65 + letterIndex++)}`,
+      utterances: s.utterances,
+    };
+  });
 
   return { speakers: labeled };
 }
