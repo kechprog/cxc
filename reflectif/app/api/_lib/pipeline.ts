@@ -3,7 +3,7 @@ import {
   pollSpeakerJob,
   downloadSpeakerAudio,
 } from "@/app/api/_lib/audiopod";
-import { matchSpeaker } from "@/app/api/_lib/speaker-id";
+import { matchSpeaker, enrollSpeaker } from "@/app/api/_lib/speaker-id";
 import { analyzeProsody } from "@/app/api/_lib/hume";
 
 export type { Utterance } from "@/app/api/_lib/hume";
@@ -50,11 +50,14 @@ export async function processConversation(
         return { voiceId: null, utterances: [] as Utterance[] };
       }
 
-      // Match against known voices
+      // Match against known voices, auto-enroll if new
       let voiceId: string | null = null;
       try {
         const m = await matchSpeaker(audio);
         voiceId = m.voiceId;
+        if (!voiceId) {
+          voiceId = await enrollSpeaker(audio);
+        }
       } catch {
         // speaker-id service unavailable or audio too short
       }
