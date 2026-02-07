@@ -17,6 +17,7 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [threadId, setThreadId] = useState<string | null>(null);
     const [assistantId, setAssistantId] = useState<string | null>(null);
+    const [chatId, setChatId] = useState<string | null>(null);
     const [seeded, setSeeded] = useState(false);
     const [inputValue, setInputValue] = useState("");
     const [isRecording, setIsRecording] = useState(false);
@@ -91,6 +92,8 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
                     message: text.trim(),
                     threadId,
                     assistantId,
+                    chatId,
+                    conversationAnalysisId: context?.id,
                 }),
             });
 
@@ -108,6 +111,9 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
             }
             if (data.assistantId && !assistantId) {
                 setAssistantId(data.assistantId);
+            }
+            if (data.chatId && !chatId) {
+                setChatId(data.chatId);
             }
 
             const aiMsg: Message = {

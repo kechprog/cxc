@@ -28,8 +28,8 @@ export type ChatMessage = {
  */
 export type Chat = {
   id: string;
-  /** The conversation analysis this chat is linked to */
-  conversationAnalysisId: string;
+  /** The conversation analysis this chat is linked to (null for standalone chats) */
+  conversationAnalysisId: string | null;
   /** ISO timestamp when chat was created */
   createdAt: string;
   /** All messages in this chat */
