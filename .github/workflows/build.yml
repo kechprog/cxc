@@ -1,0 +1,115 @@
+name: Build & Publish
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build-reflectif:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push reflectif image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./reflectif
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/reflectif:latest
+            ${{ env.REGISTRY }}/${{ github.repository }}/reflectif:${{ github.sha }}
+
+  build-speaker-id:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push speaker-id image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./services/speaker-id
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository }}/speaker-id:latest
+            ${{ env.REGISTRY }}/${{ github.repository }}/speaker-id:${{ github.sha }}
+
+  release:
+    needs: [build-reflectif, build-speaker-id]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate docker-compose for release
+        run: |
+          SHA=${{ github.sha }}
+          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          cat > docker-compose.release.yml << EOF
+          services:
+            reflectif:
+              image: ${{ env.REGISTRY }}/${REPO}/reflectif:${SHA}
+              ports:
+                - "3000:3000"
+              environment:
+                - SPEAKER_ID_URL=http://speaker-id:8100
+              env_file:
+                - .env
+              depends_on:
+                speaker-id:
+                  condition: service_healthy
+
+            speaker-id:
+              image: ${{ env.REGISTRY }}/${REPO}/speaker-id:${SHA}
+              ports:
+                - "8100:8100"
+              volumes:
+                - speaker-id-data:/app/data
+              healthcheck:
+                test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health')"]
+                interval: 10s
+                timeout: 5s
+                retries: 3
+                start_period: 30s
+
+          volumes:
+            speaker-id-data:
+          EOF
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.sha }}
+          name: Build ${{ github.sha }}
+          body: |
+            Docker images built from `${{ github.sha }}`.
+
+            **Pull & run:**
+            ```bash
+            # Download docker-compose.release.yml from this release, then:
+            docker compose -f docker-compose.release.yml up
+            ```
+
+            **Images:**
+            - `${{ env.REGISTRY }}/${{ github.repository }}/reflectif:${{ github.sha }}`
+            - `${{ env.REGISTRY }}/${{ github.repository }}/speaker-id:${{ github.sha }}`
+          files: docker-compose.release.yml

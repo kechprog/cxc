@@ -44,3 +44,9 @@ __pycache__/
 # services
 services/speaker-id/.venv
 services/speaker-id/voices.db
+
+# data
+reflectif/data/
+
+# docker
+docker-compose.release.yml
