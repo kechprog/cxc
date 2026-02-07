@@ -5,6 +5,7 @@ export function initSchema(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       voice_id TEXT,
+      backboard_assistant_id TEXT,
       created_at TEXT NOT NULL
     );
 

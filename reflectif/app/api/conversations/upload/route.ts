@@ -3,6 +3,7 @@
 
 import { processConversation } from "@/app/api/_lib/pipeline";
 import type { SpeakerAnalysis } from "@/app/api/_lib/pipeline";
+import { analyzeConversation } from "@/app/api/_lib/analysis";
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
@@ -78,16 +79,33 @@ export async function POST(request: Request) {
       )
       .sort((a: { timestamp: number }, b: { timestamp: number }) => a.timestamp - b.timestamp);
 
-    // TODO: Add LLM step to generate summary, emoji, label, dynamics, patterns
+    // LLM analysis: Backboard (GPT-4o) → Gemini (structured JSON)
+    let summary = "";
+    let emoji: ConversationAnalysis["emoji"] = "🤔";
+    let label = "New";
+    let dynamics: ConversationAnalysis["dynamics"] = [];
+    let patterns: ConversationAnalysis["patterns"] = [];
+
+    try {
+      const llmResult = await analyzeConversation(userId, pipelineResult.speakers);
+      summary = llmResult.summary;
+      emoji = llmResult.emoji;
+      label = llmResult.label;
+      dynamics = llmResult.dynamics;
+      patterns = llmResult.patterns;
+    } catch (err) {
+      console.error("LLM analysis failed, using placeholders:", err);
+    }
+
     const conversationAnalysis: ConversationAnalysis = {
       id,
       analyzedAt: new Date().toISOString(),
-      summary: "",
-      emoji: "🤔",
-      label: "New",
-      dynamics: [],
+      summary,
+      emoji,
+      label,
+      dynamics,
       scores,
-      patterns: [],
+      patterns,
     };
 
     db.createConversationAnalysis(userId, conversationAnalysis, transcripts);
