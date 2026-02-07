@@ -1,1 +1,46 @@
+# dependencies
+reflectif/node_modules
+reflectif/.pnp
+reflectif/.pnp.*
+reflectif/.yarn/*
+!reflectif/.yarn/patches
+!reflectif/.yarn/plugins
+!reflectif/.yarn/releases
+!reflectif/.yarn/versions
+
+# testing
+reflectif/coverage
+
+# next.js
+reflectif/.next/
+reflectif/out/
+
+# production
+reflectif/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+
+# vercel
+reflectif/.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# python
+__pycache__/
+
+# services
 services/speaker-id/.venv
+services/speaker-id/voices.db

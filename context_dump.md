@@ -13,8 +13,9 @@ decisions + reasoning so future conversations don't re-debate settled points.
 ### Hume.ai replaces custom ML model
 - Original plan was a custom classifier trained on RAVDESS/CREMA-D/TESS with librosa feature extraction.
 - DECIDED: Use Hume.ai instead. It provides word-level emotion analysis out of the box.
-- This eliminates: audio chunking, sliding windows, librosa, custom training, the entire Python ML service.
-- Hume gives us timestamped emotion scores per word/segment. We pass these directly into the LLM.
+- Hume's prosody model does transcription AND emotion analysis in one call — 48 emotion scores per utterance.
+- This eliminates: audio chunking, sliding windows, librosa, custom training, separate transcription service.
+- Hume gives us timestamped emotion scores per utterance. We pass these directly into the LLM.
 - The old technical.md and temp_arch.md still reference the custom model — they are OUTDATED.
 
 ### Single "mega object" per conversation analysis
@@ -80,24 +81,26 @@ decisions + reasoning so future conversations don't re-debate settled points.
 - Store in blob storage.
 - Return conversationId immediately, process async.
 
-### Step 2: Speaker diarization
-- External API: AssemblyAI or Deepgram (not decided).
-- Output: speaker-labeled, timestamped text segments.
-- This gives us the transcript WITH speaker labels and timestamps.
+### Step 2: Speaker splitting
+- DECIDED: AudioPod (api.audiopod.ai). Async job-based API.
+- Input: full conversation audio. Output: separate WAV file per speaker.
+- Not diarization (timestamps) — actual separated audio tracks.
+- Tested at 8/10 quality.
 
-### Step 3: Identify the user
-- Voice fingerprinting from onboarding.
-- During onboarding interview, the user speaks. We store a voice embedding.
-- On each upload, match speakers against this embedding.
-- OPEN QUESTION: What if fingerprinting fails? Need fallback UX (e.g., "which speaker is you?").
-- OPEN QUESTION: Which library/service for voice embeddings? Not decided.
+### Step 3: Identify speakers
+- DECIDED: Self-hosted speaker-id service (Python, FastAPI, ECAPA-TDNN via SpeechBrain).
+- Runs on GPU (RTX 3090). Extracts 192-dim voice embeddings, stores in SQLite.
+- Two endpoints: POST /enroll (store new voice) and POST /match (find best match above threshold).
+- Returns a persistent voice_id (UUID) — same person across conversations gets same ID.
+- Lives at services/speaker-id/, containerized separately from the Next.js app.
+- Azure Speaker Recognition was evaluated first but was retired Sept 2025.
 
 ### Step 4: Hume.ai
-- Send audio to Hume.ai.
-- Get back: word-level (or segment-level) emotion scores with timestamps.
-- EmotionScores type needs to align with whatever Hume actually returns.
-- OPEN QUESTION: Hume's exact output format and emotion categories. Need to check their API docs.
-  The BaseEmotion enum in temp_arch.md was designed for the custom model and may not match Hume.
+- Send each speaker's separated audio to Hume.ai (batch prosody API).
+- Hume does internal transcription + returns 48 emotion scores per utterance.
+- Output type: Utterance { text, start, end, emotions: { name, score }[] }
+- No separate transcription step needed — Hume handles it.
+- OPEN QUESTION: Whether to use all 48 emotions or reduce to a subset for the LLM/frontend.
 
 ### Step 5: LLM call
 - INPUT to the LLM:
@@ -161,6 +164,35 @@ Backup/recovery strategy for corruption is a TODO — design it but don't implem
   Tapping a suggestion opens a chat pre-seeded with that context.
 
 ---
+
+## Project Structure
+
+```
+cxc/                            # Monorepo root
+├── reflectif/                  # Next.js 16 app
+│   ├── app/api/
+│   │   ├── _lib/               # Shared API helpers (underscore = not a route)
+│   │   │   ├── audiopod.ts     # AudioPod speaker splitting client
+│   │   │   ├── hume.ts         # Hume prosody analysis client
+│   │   │   ├── speaker-id.ts   # Speaker-ID service client (HTTP to Python sidecar)
+│   │   │   └── pipeline.ts     # Orchestration: AudioPod → Speaker-ID → Hume
+│   │   └── voice-id/
+│   │       ├── setup/route.ts  # POST — enroll voice via speaker-id service
+│   │       └── test/route.ts   # POST — test match via speaker-id service
+│   ├── app/                    # Frontend pages
+│   ├── components/             # React components
+│   ├── lib/                    # General frontend utilities
+│   └── scripts/                # Dev/test scripts (tsx)
+├── services/
+│   └── speaker-id/             # Python FastAPI service
+│       ├── main.py             # Enroll + match endpoints, SQLite storage
+│       ├── voices.db           # SQLite (gitignored, volume-mounted in prod)
+│       ├── .venv/              # Python 3.11 venv (gitignored)
+│       └── requirements.txt
+├── arch_v2.md
+├── context_dump.md
+└── pitch.md
+```
 
 ## What the Frontend Looks Like (from old arch, needs updating)
 
@@ -238,41 +270,39 @@ DELETE for conversations probably not needed for hackathon. Add later if needed.
 
 ---
 
-## Tech Stack (partially decided)
+## Tech Stack
 
-- Frontend: Next.js (already built, app router)
+- Frontend: Next.js 16 (app router)
 - Backend: Next.js API routes (same app)
 - Database: PostgreSQL (Drizzle ORM was in original plan — fine to keep)
 - Audio storage: Blob storage (S3 or Vercel Blob)
-- Diarization + Transcription: AssemblyAI or Deepgram (not decided)
-- Emotion analysis: Hume.ai
+- Speaker splitting: AudioPod (api.audiopod.ai)
+- Emotion analysis + transcription: Hume.ai (prosody model — does both in one call, 48 emotions per utterance)
+- Speaker identification: Self-hosted Python service (SpeechBrain ECAPA-TDNN, FastAPI, SQLite, GPU)
 - LLM: OpenAI (was in original deps — open to alternatives)
 - RAG / Vector store: Not decided. Options: Pinecone, Weaviate, pgvector, etc.
-- Voice fingerprinting: Not decided. Need to research.
 
 ---
 
-## EmotionScores — THE OPEN QUESTION
+## EmotionScores — PARTIALLY RESOLVED
 
-The EmotionScores type is referenced everywhere but its exact shape depends on Hume.ai's output.
+Hume's prosody model returns 48 emotions per utterance as `{ name: string, score: number }[]`.
+The old BaseEmotion enum from temp_arch.md is DEAD.
 
-Old definition (from temp_arch.md, designed for custom model):
+Current implementation passes Hume's raw 48-emotion array through as-is:
 ```typescript
-type BaseEmotion =
-  | 'happiness' | 'sadness' | 'anger' | 'fear'
-  | 'disgust' | 'surprise' | 'neutral' | 'contempt'
-  | 'anxiety' | 'confidence';
-
-type EmotionScores = Record<BaseEmotion, number>; // normalized to sum to 1.0
+// From app/api/_lib/hume.ts
+interface Utterance {
+  text: string;
+  start: number;
+  end: number;
+  emotions: { name: string; score: number }[];  // 48 emotions from Hume
+}
 ```
 
-This WILL CHANGE to match Hume.ai's emotion categories. Hume has its own emotion taxonomy
-(they use a much larger set). We need to either:
-a) Use Hume's categories directly, or
-b) Map Hume's output to our own reduced set.
-
-This is a blocking decision for implementation. Check Hume.ai docs before building anything
-that depends on specific emotion labels.
+REMAINING QUESTION: Whether to reduce 48 → smaller set for frontend charting / LLM prompts.
+For now, raw 48 flows through the pipeline. Reduction can happen at the LLM prompt layer
+or in a frontend mapping function.
 
 ---
 
