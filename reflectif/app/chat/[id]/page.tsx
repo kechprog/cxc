@@ -14,7 +14,7 @@ export default async function ChatPage({
     const db = DbHandlers.getInstance();
 
     const chatSession = db.getChat(id);
-    if (!chatSession) {
+    if (!chatSession || !chatSession.conversationAnalysisId) {
         return notFound();
     }
 
