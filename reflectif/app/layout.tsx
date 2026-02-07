@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { Sidebar } from "@/components/Sidebar";
+import type { Metadata, Viewport } from "next";
+import { ClientLayout } from "@/components/ClientLayout";
 import { DbHandlers } from "@/lib/db/handlers";
 import { auth0 } from "@/lib/auth0";
 import "./globals.css";
@@ -10,6 +10,12 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Reflectif | Emotional Intelligence AI",
   description: "A passive emotional intelligence layer for your conversations.",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default async function RootLayout({
@@ -25,16 +31,9 @@ export default async function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={cn("min-h-screen bg-background font-sans antialiased text-foreground selection:bg-violet-500/30")}>
-        <div className="flex min-h-screen">
-          <Sidebar conversations={conversations} />
-          <main className="flex-1 pl-64 transition-all duration-300 relative z-0">
-            {/* Background ambient light effects */}
-            <div className="fixed top-0 right-0 w-full h-[500px] bg-violet-500/10 blur-[120px] pointer-events-none rounded-full translate-x-1/2 -translate-y-1/2" />
-            <div className="relative z-10 p-8 min-h-screen">
-              {children}
-            </div>
-          </main>
-        </div>
+        <ClientLayout conversations={conversations}>
+          {children}
+        </ClientLayout>
       </body>
     </html>
   );
