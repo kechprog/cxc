@@ -1,6 +1,7 @@
 torch
 torchaudio
 speechbrain
+soundfile
 fastapi
 uvicorn[standard]
 python-multipart
