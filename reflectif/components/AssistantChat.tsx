@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiMic, FiSend, FiUser, FiCpu, FiStopCircle } from "react-icons/fi";
 import { cn } from "@/lib/utils";
+import { ConversationAnalysis } from "@/lib/data";
 
 interface Message {
     id: string;
@@ -12,14 +13,30 @@ interface Message {
     isAudio?: boolean;
 }
 
-export function AssistantChat() {
-    const [messages, setMessages] = useState<Message[]>([
-        {
-            id: "welcome",
-            role: "assistant",
-            text: "Hello. I'm your Reflectif assistant. I can help interpret your data, clarify emotional patterns, or just listen. How are you feeling right now?"
+export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
+    const [messages, setMessages] = useState<Message[]>([]);
+
+    useEffect(() => {
+        // Initialize chat based on context
+        if (messages.length === 0) {
+            if (context) {
+                // Conversation Specific Observation
+                setMessages([{
+                    id: "welcome",
+                    role: "assistant",
+                    text: `During this conversation, it would be great to observe your **${context.label}** pattern. \n\nI noticed distinct phases of ${context.dynamics.map(d => d.phase).join(" and ")}. \n\nWhat do you think triggered the shift?`
+                }]);
+            } else {
+                // Global "Observe Yourself" Observation
+                setMessages([{
+                    id: "welcome",
+                    role: "assistant",
+                    text: "Over the last 7 days, you've been consistent with self-reflection. \n\nHowever, I've observed a recurring theme of **high anxiety** in the evenings. \n\nLet's observe this pattern together. How have you been feeling after work this week?"
+                }]);
+            }
         }
-    ]);
+    }, [context]);
+
     const [isRecording, setIsRecording] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);

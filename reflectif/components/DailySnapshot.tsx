@@ -4,14 +4,14 @@ import { motion } from "framer-motion";
 import { FiTrendingUp, FiTrendingDown, FiSun, FiActivity, FiClock } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { EmotionChart } from "@/components/EmotionChart";
-import { MOCK_EMOTION_TRENDS } from "@/lib/data";
+import { MOCK_CONVERSATIONS } from "@/lib/data";
 
-// Mock data for the daily snapshot
+// Mock data for the daily snapshot (Consider moving this to user progress mock eventually)
 const TODAY_DATA = {
-    moodEmoji: "😐",
-    moodLabel: "Neutral",
-    trend: "stable", // 'up', 'down', 'stable'
-    trendLabel: "Same as yesterday",
+    moodEmoji: MOCK_CONVERSATIONS[0].emoji,
+    moodLabel: MOCK_CONVERSATIONS[0].label,
+    trend: "stable",
+    trendLabel: "Consistent with observation",
     suggestion: {
         title: "Suggestions for you today",
         text: "You seem a bit flat today. Try a quick 5-minute walk to reset your energy levels.",
@@ -33,14 +33,14 @@ export function DailySnapshot() {
             <div className="glass p-4 lg:p-5 rounded-2xl relative overflow-hidden lg:col-span-2 flex flex-col justify-between h-[220px] lg:h-[280px]">
                 <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                        <FiClock /> Last 24 Hours
+                        <FiClock /> Latest Session
                     </h3>
                     <div className="text-[10px] lg:text-xs text-zinc-500 bg-white/5 px-2 py-1 lg:px-3 lg:py-1.5 rounded-full border border-white/5">
                         Emotion Distribution
                     </div>
                 </div>
                 <div className="flex-1 w-full min-h-0">
-                    <EmotionChart data={MOCK_EMOTION_TRENDS} className="h-full" />
+                    <EmotionChart data={MOCK_CONVERSATIONS[0].scores} className="h-full" />
                 </div>
             </div>
 
