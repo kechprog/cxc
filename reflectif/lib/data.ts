@@ -93,12 +93,12 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
         timestamp: "00:35",
         sentiment: "positive",
       },
-       {
+      {
         id: "t6",
         speaker: "You",
         text: "Okay, I can live with that. MVP first.",
         timestamp: "00:40",
-         sentiment: "neutral", // Relief
+        sentiment: "neutral", // Relief
       },
     ],
   },
@@ -123,7 +123,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
       { id: "t4", speaker: "You", text: "Exactly. But I have the report ready.", timestamp: "00:15", sentiment: "positive" },
     ],
   },
-    {
+  {
     id: "conv-3",
     date: "2023-10-25T16:00:00Z",
     summary:
@@ -139,9 +139,9 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
       "Deal closed successfully",
     ],
     transcript: [
-        { id: "t1", speaker: "Other", text: "The price point is a bit higher than we budgeted.", timestamp: "05:20", sentiment: "negative" },
-        { id: "t2", speaker: "You", text: "I understand. However, consider the long-term support included.", timestamp: "05:25", sentiment: "positive" },
-        { id: "t3", speaker: "Other", text: "That is a good point.", timestamp: "05:35", sentiment: "neutral" },
+      { id: "t1", speaker: "Other", text: "The price point is a bit higher than we budgeted.", timestamp: "05:20", sentiment: "negative" },
+      { id: "t2", speaker: "You", text: "I understand. However, consider the long-term support included.", timestamp: "05:25", sentiment: "positive" },
+      { id: "t3", speaker: "Other", text: "That is a good point.", timestamp: "05:35", sentiment: "neutral" },
     ]
   },
 ];
@@ -185,3 +185,69 @@ export const MOCK_GLOBAL_STATS: GlobalStats = {
     },
   ],
 };
+
+// --- EMOTION DATA CONSTANTS ---
+
+export const EMOTIONS = [
+  "Joy",
+  "Sadness",
+  "Anxiety",
+  "Calm",
+  "Anger",
+] as const;
+
+export type EmotionType = typeof EMOTIONS[number];
+
+export const EMOTION_COLORS: Record<EmotionType, string> = {
+  Joy: "#fbbf24", // amber-400
+  Sadness: "#60a5fa", // blue-400
+  Anxiety: "#fb923c", // orange-400
+  Calm: "#94a3b8", // slate-400
+  Anger: "#f87171", // red-400
+};
+
+export const EMOTION_DEFINITIONS: Record<EmotionType, string> = {
+  Joy: "A feeling of great pleasure and happiness.",
+  Sadness: "Emotional pain associated with feelings of disadvantage, loss, or sorrow.",
+  Anxiety: "A feeling of worry, nervousness, or unease about an uncertain outcome.",
+  Calm: "A state of tranquility, free from agitation or strong emotion.",
+  Anger: "A strong feeling of annoyance, displeasure, or hostility.",
+};
+
+// Generate 24h of mock data where values sum to 1.0
+const generateEmotionTrends = () => {
+  const data = [];
+  const now = new Date();
+  for (let i = 24; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+    const hour = d.getHours();
+
+    // Base probabilities (random items to simulate shifting moods)
+    let rawValues: Record<string, number> = {};
+
+    EMOTIONS.forEach(e => {
+      // Add some "noise"
+      let val = Math.random();
+
+      // Bias certain emotions based on hour to make it look realistic
+      if (e === "Calm" && (hour < 7 || hour > 22)) val += 2; // Calmer at night
+      if (e === "Anxiety" && (hour > 9 && hour < 17)) val += 1.5; // Work anxiety
+      if (e === "Joy" && (hour > 18)) val += 1; // Evening relaxation
+
+      rawValues[e] = val;
+    });
+
+    // Normalize to sum to 1.0
+    const total = Object.values(rawValues).reduce((a, b) => a + b, 0);
+    const normalizedValues: any = { time: d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+
+    EMOTIONS.forEach(e => {
+      normalizedValues[e] = rawValues[e] / total;
+    });
+
+    data.push(normalizedValues);
+  }
+  return data;
+}
+
+export const MOCK_EMOTION_TRENDS = generateEmotionTrends();

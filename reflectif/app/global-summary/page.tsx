@@ -1,6 +1,6 @@
-import { MoodChart } from "@/components/MoodChart";
-import { MOCK_GLOBAL_STATS } from "@/lib/data";
-import { FiTrendingUp, FiAlertCircle, FiSun, FiActivity } from "react-icons/fi";
+import { EmotionChart } from "@/components/EmotionChart";
+import { MOCK_GLOBAL_STATS, EMOTION_DEFINITIONS, EMOTION_COLORS, EMOTIONS } from "@/lib/data";
+import { FiTrendingUp, FiAlertCircle, FiSun, FiActivity, FiInfo } from "react-icons/fi";
 
 export default function GlobalSummaryPage() {
     return (
@@ -10,7 +10,7 @@ export default function GlobalSummaryPage() {
             <div>
                 <h1 className="text-3xl font-light text-white mb-2">Global Insights</h1>
                 <p className="text-zinc-400">
-                    Your emotional patterns over the last 30 days.
+                    Your emotional landscape over the last 24 hours.
                 </p>
             </div>
 
@@ -19,14 +19,33 @@ export default function GlobalSummaryPage() {
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-lg font-medium text-white flex items-center gap-2">
                         <FiActivity className="text-violet-400" />
-                        Mood Timeline
+                        Emotion Distribution
                     </h2>
-                    <div className="flex gap-2">
-                        <span className="text-xs text-zinc-500 bg-white/5 px-2 py-1 rounded">7 Days</span>
-                        <span className="text-xs text-zinc-300 bg-white/10 px-2 py-1 rounded">30 Days</span>
+                    <div className="text-xs text-zinc-500 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                        Probability Density (∑ = 1.0)
                     </div>
                 </div>
-                <MoodChart />
+                <EmotionChart />
+            </div>
+
+            {/* Definitions Legend */}
+            <div>
+                <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <FiInfo /> Emotion Definitions
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                    {EMOTIONS.map((emotion) => (
+                        <div key={emotion} className="glass p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors">
+                            <div className="flex items-center gap-2 mb-2">
+                                <div className="w-3 h-3 rounded-full shadow-lg shadow-black/50" style={{ backgroundColor: EMOTION_COLORS[emotion] }} />
+                                <h4 className="font-medium text-zinc-200 text-sm">{emotion}</h4>
+                            </div>
+                            <p className="text-xs text-zinc-500 leading-relaxed">
+                                {EMOTION_DEFINITIONS[emotion]}
+                            </p>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Analysis Grid */}
