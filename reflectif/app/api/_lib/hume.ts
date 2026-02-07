@@ -40,9 +40,11 @@ export async function analyzeProsody(
     throw new Error(`Hume submit failed (${submitRes.status}): ${body}`);
   }
   const { job_id } = await submitRes.json();
+  if (!job_id) throw new Error("No job_id in Hume submit response");
 
   // Poll until done
   const h = { "X-Hume-Api-Key": getApiKey() };
+  let completed = false;
   for (let i = 0; i < 120; i++) {
     await new Promise((r) => setTimeout(r, 3000));
     const statusRes = await fetch(`${API_BASE}/${job_id}`, { headers: h });
@@ -52,10 +54,11 @@ export async function analyzeProsody(
     }
     const job = await statusRes.json();
     const state = job.state?.status;
-    if (state === "COMPLETED") break;
+    if (state === "COMPLETED") { completed = true; break; }
     if (state === "FAILED")
       throw new Error(`Hume job failed: ${job.state?.message ?? ""}`);
   }
+  if (!completed) throw new Error("Hume job timed out");
 
   // Fetch predictions and flatten to utterances
   const predRes = await fetch(`${API_BASE}/${job_id}/predictions`, {

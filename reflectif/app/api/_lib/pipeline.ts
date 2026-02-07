@@ -5,7 +5,11 @@ import {
 } from "@/app/api/_lib/audiopod";
 import { verifyAudio } from "@/app/api/_lib/azure-speaker";
 import { getProfileId } from "@/app/api/_lib/voice-store";
-import { analyzeProsody, type Utterance } from "@/app/api/_lib/hume";
+import { analyzeProsody } from "@/app/api/_lib/hume";
+
+export type { Utterance } from "@/app/api/_lib/hume";
+
+import type { Utterance } from "@/app/api/_lib/hume";
 
 export interface SpeakerAnalysis {
   displayName: string;
@@ -36,20 +40,21 @@ export async function processConversation(
   const { id: jobId } = await extractSpeakers(audioBuffer, filename);
   const extraction = await pollSpeakerJob(jobId);
 
-  if (extraction.status === "FAILED") {
-    throw new Error("Speaker extraction failed");
+  const speakers = extraction.result.speakers;
+  if (!speakers?.length) {
+    throw new Error("No speakers detected in audio");
   }
 
   // Step 2: For each speaker — download, identify, analyze
-  const speakers = await Promise.all(
-    extraction.result.speakers.map(async (speaker) => {
+  const results = await Promise.all(
+    speakers.map(async (speaker) => {
       const audio = await downloadSpeakerAudio(speaker.download_url);
 
       // Identify user via Azure voice profile
-      let isUser = false;
+      let verifyScore = -1;
       try {
         const v = await verifyAudio(profileId, audio);
-        isUser = v.result === "Accept";
+        verifyScore = v.result === "Accept" ? v.score : -1;
       } catch {
         // Too short or bad audio — not the user
       }
@@ -62,17 +67,28 @@ export async function processConversation(
         // Non-fatal
       }
 
-      return { isUser, utterances };
+      return { verifyScore, utterances };
     })
   );
 
-  // Label: "You" for the user, "Speaker A/B/C" for others
+  // Pick the single best user match (highest score among accepted)
+  let bestUserIdx = -1;
+  let bestScore = -1;
+  for (let i = 0; i < results.length; i++) {
+    if (results[i].verifyScore > bestScore) {
+      bestScore = results[i].verifyScore;
+      bestUserIdx = i;
+    }
+  }
+
+  // Label: "You" for the best match, "Speaker A/B/C" for others
   let letterIndex = 0;
-  const labeled = speakers.map((s) => ({
-    displayName: s.isUser
-      ? "You"
-      : `Speaker ${String.fromCharCode(65 + letterIndex++)}`,
-    isUser: s.isUser,
+  const labeled: SpeakerAnalysis[] = results.map((s, i) => ({
+    displayName:
+      i === bestUserIdx && bestScore > 0
+        ? "You"
+        : `Speaker ${String.fromCharCode(65 + letterIndex++)}`,
+    isUser: i === bestUserIdx && bestScore > 0,
     utterances: s.utterances,
   }));
 

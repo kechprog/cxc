@@ -50,7 +50,7 @@ export async function enrollAudio(
   const data = await res.json();
   return {
     enrollmentStatus: data.enrollmentStatus as string,
-    remainingSpeechLength: (data.remainingEnrollmentsSpeechLength ?? data.remainingSpeechLength ?? 0) as number,
+    remainingSpeechLength: (data.remainingEnrollmentsSpeechLengthInSec ?? 0) as number,
   };
 }
 

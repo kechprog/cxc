@@ -22,7 +22,7 @@ export async function extractSpeakers(
 ): Promise<{ id: number }> {
   const formData = new FormData();
   formData.append("file", new Blob([new Uint8Array(audioBuffer)]), filename);
-  if (numSpeakers) formData.append("num_speakers", String(numSpeakers));
+  if (numSpeakers != null) formData.append("num_speakers", String(numSpeakers));
 
   const res = await fetch(`${API_BASE}/api/v1/speaker/extract`, {
     method: "POST",
@@ -52,7 +52,10 @@ export async function pollSpeakerJob(
       );
     }
     const job = await res.json();
-    if (job.status === "COMPLETED" || job.status === "FAILED") return job;
+    if (job.status === "FAILED") {
+      throw new Error(`AudioPod speaker extraction failed: ${job.error ?? ""}`);
+    }
+    if (job.status === "COMPLETED") return job;
     await new Promise((r) => setTimeout(r, intervalMs));
   }
   throw new Error("AudioPod speaker extraction timed out");
@@ -61,7 +64,9 @@ export async function pollSpeakerJob(
 export async function downloadSpeakerAudio(
   downloadUrl: string
 ): Promise<Buffer> {
-  const res = await fetch(downloadUrl, { headers: headers() });
+  // Only send API key to AudioPod's own domain
+  const isAudioPodUrl = downloadUrl.startsWith(API_BASE);
+  const res = await fetch(downloadUrl, isAudioPodUrl ? { headers: headers() } : {});
   if (!res.ok) {
     throw new Error(`AudioPod download failed (${res.status})`);
   }
