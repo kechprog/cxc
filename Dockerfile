@@ -13,9 +13,9 @@ RUN npm run build
 # ── Stage 2: Final image (Python base + Node runtime) ──
 FROM python:3.11-slim
 
-# Install Node.js + system deps
+# Install Node.js + system deps + build tools for native modules
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl ffmpeg libsndfile1 && \
+    apt-get install -y --no-install-recommends curl ffmpeg libsndfile1 make g++ && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     rm -rf /var/lib/apt/lists/*
@@ -35,6 +35,9 @@ RUN python -c "from speechbrain.inference.speaker import EncoderClassifier; Enco
 COPY --from=node-builder /app/public /app/nextjs/public
 COPY --from=node-builder /app/.next/standalone /app/nextjs
 COPY --from=node-builder /app/.next/static /app/nextjs/.next/static
+
+# Install better-sqlite3 native binary for this runtime
+RUN cd /app/nextjs && npm install better-sqlite3
 
 # ── Entrypoint ──
 COPY entrypoint.sh /app/entrypoint.sh
