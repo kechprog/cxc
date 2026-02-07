@@ -1,9 +1,11 @@
+// TODO: Replace userId form field with Auth0 session — authenticate requests
+// and derive userId from token instead of trusting client-provided value.
+
 import { processConversation } from "@/app/api/_lib/pipeline";
 import type { SpeakerAnalysis } from "@/app/api/_lib/pipeline";
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import { delay } from "@/lib/utils";
 import { DbHandlers } from "@/lib/db/handlers";
 import type { ConversationAnalysis } from "@/lib/types/conversation";
 import type { TranscriptMessage } from "@/lib/types/transcript";
@@ -11,12 +13,25 @@ import type { TranscriptMessage } from "@/lib/types/transcript";
 export async function POST(request: Request) {
   const formData = await request.formData();
   const audioFile = formData.get("audio") as File | null;
+  const userId = formData.get("userId") as string | null;
 
   if (!audioFile) {
     return NextResponse.json(
       { error: "No audio file provided" },
       { status: 400 },
     );
+  }
+  if (!userId) {
+    return NextResponse.json(
+      { error: "No userId provided" },
+      { status: 400 },
+    );
+  }
+
+  const db = DbHandlers.getInstance();
+  const user = db.getUser(userId);
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
   const buffer = Buffer.from(await audioFile.arrayBuffer());
@@ -30,9 +45,11 @@ export async function POST(request: Request) {
   console.log(`Saved recording to ${filePath}`);
 
   try {
-    // Artificial delay for ui. Remove after implementing processConversation func.
-    await delay(10000);
-    const pipelineResult = await processConversation(buffer, audioFile.name);
+    const pipelineResult = await processConversation(
+      buffer,
+      audioFile.name,
+      user.voiceId,
+    );
 
     // Build transcript messages from speaker utterances, sorted by time
     const transcripts: TranscriptMessage[] = pipelineResult.speakers
@@ -73,8 +90,7 @@ export async function POST(request: Request) {
       patterns: [],
     };
 
-    const db = DbHandlers.getInstance();
-    db.createConversationAnalysis("usr_123", conversationAnalysis, transcripts);
+    db.createConversationAnalysis(userId, conversationAnalysis, transcripts);
 
     return NextResponse.json({ id, status: "completed", analysis: conversationAnalysis });
   } catch (error) {

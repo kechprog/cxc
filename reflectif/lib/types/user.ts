@@ -9,11 +9,8 @@
  */
 export type User = {
   id: string;
-  /**
-   * TODO: Voice embedding for speaker identification.
-   * Captured during onboarding interview.
-   */
-  voiceEmbedding: unknown;
+  /** Voice ID from speaker-id service, set during onboarding enrollment */
+  voiceId: string | null;
   /** ISO timestamp when user was created (onboarding completed) */
   createdAt: string;
 };

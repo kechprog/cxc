@@ -51,9 +51,15 @@ export class DbHandlers {
     const row = userToRow(user);
     this.db
       .prepare(
-        `INSERT INTO users (id, voice_embedding, created_at) VALUES (?, ?, ?)`
+        `INSERT INTO users (id, voice_id, created_at) VALUES (?, ?, ?)`
       )
-      .run(row.id, row.voice_embedding, row.created_at);
+      .run(row.id, row.voice_id, row.created_at);
+  }
+
+  updateUserVoiceId(userId: string, voiceId: string): void {
+    this.db
+      .prepare(`UPDATE users SET voice_id = ? WHERE id = ?`)
+      .run(voiceId, userId);
   }
 
   getUser(id: string): User | null {

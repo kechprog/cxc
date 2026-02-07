@@ -13,7 +13,7 @@ import type {
 
 export type UserRow = {
   id: string;
-  voice_embedding: Buffer | null;
+  voice_id: string | null;
   created_at: string;
 };
 
@@ -70,7 +70,7 @@ export type ChatMessageRow = {
 export function userFromRow(row: UserRow): User {
   return {
     id: row.id,
-    voiceEmbedding: row.voice_embedding,
+    voiceId: row.voice_id,
     createdAt: row.created_at,
   };
 }
@@ -78,7 +78,7 @@ export function userFromRow(row: UserRow): User {
 export function userToRow(user: User): UserRow {
   return {
     id: user.id,
-    voice_embedding: user.voiceEmbedding as Buffer | null,
+    voice_id: user.voiceId,
     created_at: user.createdAt,
   };
 }
