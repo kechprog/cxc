@@ -44,7 +44,7 @@ export function initSchema(db: Database.Database): void {
 
     CREATE TABLE IF NOT EXISTS chats (
       id TEXT PRIMARY KEY,
-      conversation_analysis_id TEXT NOT NULL REFERENCES conversation_analyses(id) ON DELETE CASCADE,
+      conversation_analysis_id TEXT REFERENCES conversation_analyses(id) ON DELETE CASCADE,
       created_at TEXT NOT NULL
     );
 
