@@ -11,6 +11,8 @@ export type User = {
   id: string;
   /** Voice ID from speaker-id service, set during onboarding enrollment */
   voiceId: string | null;
+  /** Backboard assistant ID for this user's analysis/chat context (per-user memory isolation) */
+  backboardAssistantId: string | null;
   /** ISO timestamp when user was created (onboarding completed) */
   createdAt: string;
 };

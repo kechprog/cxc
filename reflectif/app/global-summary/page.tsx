@@ -5,11 +5,11 @@ import { cn } from "@/lib/utils";
 
 export default function GlobalSummaryPage() {
     return (
-        <div className="max-w-6xl mx-auto space-y-12 pb-20">
+        <div className="max-w-6xl mx-auto space-y-8 lg:space-y-12 pb-20">
 
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-light text-white mb-2">My Growth (EQ Trainer)</h1>
+                <h1 className="text-2xl lg:text-3xl font-light text-white mb-2">My Growth (EQ Trainer)</h1>
                 <p className="text-zinc-400">
                     Tracking your emotional intelligence and communication skills over time.
                 </p>
@@ -18,7 +18,7 @@ export default function GlobalSummaryPage() {
             {/* EQ Dimensions Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {MOCK_USER_PROGRESS.eq.map((dim) => (
-                    <div key={dim.name} className="glass p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-violet-500/30 transition-colors">
+                    <div key={dim.name} className="glass p-4 lg:p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-violet-500/30 transition-colors">
                         <div className="relative z-10">
                             <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-1 truncate">
                                 {dim.name.replace('_', ' ')}
@@ -36,7 +36,7 @@ export default function GlobalSummaryPage() {
             </div>
 
             {/* Progress & Improvements Split */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
 
                 {/* Wins / Progress */}
                 <div className="space-y-6">
@@ -46,7 +46,7 @@ export default function GlobalSummaryPage() {
                     </h2>
                     <div className="space-y-4">
                         {MOCK_USER_PROGRESS.progress.map((item, i) => (
-                            <div key={i} className="glass p-6 rounded-2xl border-l-4 border-l-emerald-500/50">
+                            <div key={i} className="glass p-4 lg:p-6 rounded-2xl border-l-4 border-l-emerald-500/50">
                                 <h3 className="font-medium text-emerald-100 mb-2">{item.observation}</h3>
                                 <div className="flex flex-wrap gap-2">
                                     {item.evidence.map((ev, j) => (
@@ -68,7 +68,7 @@ export default function GlobalSummaryPage() {
                     </h2>
                     <div className="space-y-4">
                         {MOCK_USER_PROGRESS.improvements.map((item, i) => (
-                            <div key={i} className="glass p-6 rounded-2xl border-l-4 border-l-amber-500/50">
+                            <div key={i} className="glass p-4 lg:p-6 rounded-2xl border-l-4 border-l-amber-500/50">
                                 <h3 className="font-medium text-amber-100 mb-2">{item.observation}</h3>
                                 <p className="text-sm text-zinc-400 mb-3 italic">
                                     "{item.suggestion}"
@@ -88,14 +88,14 @@ export default function GlobalSummaryPage() {
             </div>
 
             {/* Raw Emotional Data (Legacy View) */}
-            <div className="glass p-8 rounded-3xl border-violet-500/20 shadow-[0_0_50px_rgba(139,92,246,0.05)]">
-                <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-lg font-medium text-white flex items-center gap-2">
+            <div className="glass p-4 lg:p-8 rounded-2xl lg:rounded-3xl border-violet-500/20 shadow-[0_0_50px_rgba(139,92,246,0.05)]">
+                <div className="flex items-center justify-between mb-4 lg:mb-8">
+                    <h2 className="text-base lg:text-lg font-medium text-white flex items-center gap-2">
                         <FiActivity className="text-violet-400" />
                         24h Emotion Distribution
                     </h2>
                 </div>
-                <div className="h-[400px] w-full">
+                <div className="h-[280px] lg:h-[400px] w-full">
                     {/* Reusing Mock Data for chart as UserProgress doesn't have raw timeseries, assuming we fetch it separately or pass it in */}
                     <EmotionChart />
                 </div>

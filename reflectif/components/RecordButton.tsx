@@ -7,7 +7,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { encodeWav } from "@/lib/audio/encode-wav";
 
-export function RecordButton({ latestConversationId }: { latestConversationId?: string }) {
+export function RecordButton({ latestConversationId, onRecordingChange }: { latestConversationId?: string; onRecordingChange?: (active: boolean) => void }) {
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [showAnalysisLink, setShowAnalysisLink] = useState(false);
@@ -45,6 +45,7 @@ export function RecordButton({ latestConversationId }: { latestConversationId?: 
 
             mediaRecorder.start();
             setIsRecording(true);
+            onRecordingChange?.(true);
             setShowAnalysisLink(false);
             setError(null);
             setRecordingTime(0);
@@ -55,7 +56,7 @@ export function RecordButton({ latestConversationId }: { latestConversationId?: 
         } catch (err) {
             console.error("Failed to start recording:", err);
         }
-    }, []);
+    }, [onRecordingChange]);
 
     const stopRecording = useCallback(async () => {
         const mediaRecorder = mediaRecorderRef.current;
@@ -117,6 +118,7 @@ export function RecordButton({ latestConversationId }: { latestConversationId?: 
         if (isRecording) {
             setIsRecording(false);
             setIsUploading(true);
+            onRecordingChange?.(false);
             await stopRecording();
         } else {
             await startRecording();

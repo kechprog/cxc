@@ -26,11 +26,11 @@ export default async function ChatPage({
     const { transcripts, ...conversation } = conversationResult;
 
     return (
-        <div className="h-[calc(100vh-80px)] max-w-[1600px] mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="h-[calc(100vh-120px)] lg:h-[calc(100vh-80px)] max-w-[1600px] mx-auto p-4 lg:p-6 flex flex-col lg:grid lg:grid-cols-12 gap-6">
 
-            {/* LEFT COLUMN: AI CHAT (Main Focus) */}
-            <div className="lg:col-span-5 flex flex-col h-full glass rounded-3xl overflow-hidden border border-violet-500/20 shadow-2xl relative">
-                <div className="p-4 border-b border-white/5 bg-white/5 backdrop-blur-xl flex items-center justify-between">
+            {/* AI CHAT (Full screen on mobile, 5-col on lg) */}
+            <div className="lg:col-span-5 flex flex-col flex-1 lg:flex-initial lg:h-full glass rounded-2xl lg:rounded-3xl overflow-hidden border border-violet-500/20 shadow-2xl relative">
+                <div className="p-3 lg:p-4 border-b border-white/5 bg-white/5 backdrop-blur-xl flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="text-sm font-medium text-white">AI Therapist</span>
@@ -48,8 +48,8 @@ export default async function ChatPage({
                 </div>
             </div>
 
-            {/* RIGHT COLUMN: ANALYSIS CONTEXT (Read-Only Ref) */}
-            <div className="lg:col-span-7 space-y-6 overflow-y-auto pr-2 pb-20 custom-scrollbar opacity-80 hover:opacity-100 transition-opacity">
+            {/* ANALYSIS CONTEXT (Hidden on mobile, visible on lg) */}
+            <div className="hidden lg:block lg:col-span-7 space-y-6 overflow-y-auto pr-2 pb-20 custom-scrollbar opacity-80 hover:opacity-100 transition-opacity">
                 <DashboardContent conversation={conversation} transcript={transcripts} showChatButton={false} />
             </div>
         </div>

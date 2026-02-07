@@ -63,11 +63,12 @@ export async function sendMessage(
   threadId: string,
   content: string,
   sendToLlm = true,
+  memory: "auto" | "read" | "off" = "auto",
 ): Promise<{ content: string; messageId: string }> {
   const form = new FormData();
   form.append("content", content);
   form.append("stream", "false");
-  form.append("memory", "auto");
+  form.append("memory", memory);
   form.append("send_to_llm", String(sendToLlm));
 
   const res = await fetch(`${BASE}/threads/${threadId}/messages`, {

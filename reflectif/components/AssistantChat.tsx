@@ -154,7 +154,7 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
     return (
         <div className="flex flex-col h-full relative">
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 pb-4">
+            <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 lg:space-y-6 pb-4">
                 {messages.map((msg) => (
                     <motion.div
                         key={msg.id}
@@ -214,14 +214,14 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
             </div>
 
             {/* Input Area */}
-            <div className="p-6 border-t border-white/5 bg-black/40 backdrop-blur-xl shrink-0">
-                <div className="flex items-center gap-4 max-w-2xl mx-auto">
+            <div className="p-3 lg:p-6 border-t border-white/5 bg-black/40 backdrop-blur-xl shrink-0">
+                <div className="flex items-center gap-3 lg:gap-4 max-w-2xl mx-auto">
 
                     {/* Mic Button (Main Interaction) */}
                     <button
                         onClick={toggleRecording}
                         className={cn(
-                            "relative group flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300 outline-none",
+                            "relative group flex-shrink-0 w-11 h-11 lg:w-14 lg:h-14 rounded-full flex items-center justify-center transition-all duration-300 outline-none",
                             isRecording
                                 ? "bg-red-500/20 text-red-500 border border-red-500/50"
                                 : "bg-white/10 text-white hover:bg-violet-500/20 hover:text-violet-300 hover:border-violet-500/50 border border-white/10"
@@ -242,7 +242,7 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
                             onKeyDown={handleKeyDown}
                             disabled={isRecording || isThinking}
                             placeholder={isRecording ? "Listening..." : "Type a message..."}
-                            className="w-full bg-white/5 border border-white/10 rounded-full px-5 py-4 focus:outline-none focus:border-violet-500/50 focus:bg-white/10 transition-all text-sm text-white placeholder:text-zinc-600 disabled:opacity-50"
+                            className="w-full bg-white/5 border border-white/10 rounded-full px-4 py-3 lg:px-5 lg:py-4 focus:outline-none focus:border-violet-500/50 focus:bg-white/10 transition-all text-sm text-white placeholder:text-zinc-600 disabled:opacity-50"
                         />
                         <button
                             onClick={() => sendUserMessage(inputValue)}

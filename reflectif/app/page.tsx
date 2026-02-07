@@ -1,12 +1,12 @@
-import { RecordButton } from "@/components/RecordButton";
-import { DailySnapshot } from "@/components/DailySnapshot";
+import { HomeContent } from "@/components/HomeContent";
 import { DbHandlers } from "@/lib/db/handlers";
+import { auth0 } from "@/lib/auth0";
 
-const USER_ID = "usr_123";
-
-export default function Home() {
+export default async function Home() {
+  const session = await auth0.getSession();
+  const userId = session!.user.sub;
   const db = DbHandlers.getInstance();
-  const conversations = db.listConversationAnalyses(USER_ID);
+  const conversations = db.listConversationAnalyses(userId);
   const latestId = conversations[0]?.id;
 
   // Fetch full latest conversation for DailySnapshot scores
@@ -15,14 +15,9 @@ export default function Home() {
     : null;
 
   return (
-    <div className="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[70vh] lg:min-h-[80vh] py-6 lg:py-0">
-      <RecordButton latestConversationId={latestId} />
-
-      {/* Daily Snapshot Section */}
-      {/* TODO: API CALL - GET /api/user/progress */}
-      <div className="mt-4 lg:mt-8 w-full flex justify-center px-4 lg:px-0">
-        <DailySnapshot latestConversation={latestConversation ?? undefined} />
-      </div>
-    </div>
+    <HomeContent
+      latestConversationId={latestId}
+      latestConversation={latestConversation ?? undefined}
+    />
   );
 }
