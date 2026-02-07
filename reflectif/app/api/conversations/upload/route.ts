@@ -1,7 +1,12 @@
 import { processConversation } from "@/app/api/_lib/pipeline";
+import type { SpeakerAnalysis } from "@/app/api/_lib/pipeline";
 import { NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import { delay } from "@/lib/utils";
+import { DbHandlers } from "@/lib/db/handlers";
+import type { ConversationAnalysis } from "@/lib/types/conversation";
+import type { TranscriptMessage } from "@/lib/types/transcript";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -25,9 +30,53 @@ export async function POST(request: Request) {
   console.log(`Saved recording to ${filePath}`);
 
   try {
-    const analysis = await processConversation(buffer, audioFile.name);
-    // TODO: persist analysis to DB via DbHandlers
-    return NextResponse.json({ id, status: "completed", analysis });
+    // Artificial delay for ui. Remove after implementing processConversation func.
+    await delay(10000);
+    const pipelineResult = await processConversation(buffer, audioFile.name);
+
+    // Build transcript messages from speaker utterances, sorted by time
+    const transcripts: TranscriptMessage[] = pipelineResult.speakers
+      .flatMap((speaker: SpeakerAnalysis) =>
+        speaker.utterances.map((u) => ({
+          role: speaker.displayName,
+          text: u.text,
+          sentiment: u.emotions.length > 0
+            ? u.emotions.reduce((a, b) => (a.score > b.score ? a : b)).name
+            : undefined,
+          timestamp: `${Math.floor(u.start / 60).toString().padStart(2, "0")}:${Math.floor(u.start % 60).toString().padStart(2, "0")}`,
+          _sortKey: u.start,
+        }))
+      )
+      .sort((a: { _sortKey: number }, b: { _sortKey: number }) => a._sortKey - b._sortKey)
+      .map(({ _sortKey, ...msg }: { _sortKey: number } & TranscriptMessage) => msg);
+
+    // Build timestamped emotion scores from all utterances
+    const scores = pipelineResult.speakers
+      .flatMap((speaker: SpeakerAnalysis) =>
+        speaker.utterances.map((u) => ({
+          timestamp: u.start,
+          speaker: speaker.displayName,
+          emotions: u.emotions,
+        }))
+      )
+      .sort((a: { timestamp: number }, b: { timestamp: number }) => a.timestamp - b.timestamp);
+
+    // TODO: Add LLM step to generate summary, emoji, label, dynamics, patterns
+    const conversationAnalysis: ConversationAnalysis = {
+      id,
+      analyzedAt: new Date().toISOString(),
+      summary: "",
+      emoji: "🤔",
+      label: "New",
+      dynamics: [],
+      scores,
+      patterns: [],
+    };
+
+    const db = DbHandlers.getInstance();
+    db.createConversationAnalysis("usr_123", conversationAnalysis, transcripts);
+
+    return NextResponse.json({ id, status: "completed", analysis: conversationAnalysis });
   } catch (error) {
     console.error("Processing failed:", error);
     return NextResponse.json(
