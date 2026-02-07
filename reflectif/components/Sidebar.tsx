@@ -55,6 +55,7 @@ export function Sidebar() {
                         Recent Conversations
                     </h3>
                     <div className="space-y-1">
+                        {/* TODO: API CALL - GET /api/conversations */}
                         {MOCK_CONVERSATIONS.map((conv) => (
                             <Link
                                 key={conv.id}
