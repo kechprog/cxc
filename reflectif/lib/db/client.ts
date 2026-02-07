@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { mkdirSync } from "fs";
 import path from "path";
 import { initSchema } from "./schema";
 import { seedDb } from "./seed";
@@ -12,7 +13,7 @@ export function getDb(): Database.Database {
     process.env.DATABASE_PATH ??
     path.join(process.cwd(), "data", "reflectif.db");
 
-  console.log(dbPath);
+  mkdirSync(path.dirname(dbPath), { recursive: true });
   db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");

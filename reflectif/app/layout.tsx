@@ -4,6 +4,8 @@ import { DbHandlers } from "@/lib/db/handlers";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 const USER_ID = "usr_123";
 
 export const metadata: Metadata = {
