@@ -25,7 +25,9 @@ export default function GlobalSummaryPage() {
                         Probability Density (∑ = 1.0)
                     </div>
                 </div>
-                <EmotionChart />
+                <div className="h-[400px] w-full">
+                    <EmotionChart />
+                </div>
             </div>
 
             {/* Definitions Legend */}

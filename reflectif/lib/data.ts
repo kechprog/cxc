@@ -17,6 +17,7 @@ export interface Conversation {
   };
   keyPoints: string[];
   transcript: TranscriptMessage[];
+  emotionTrends?: any[];
 }
 
 export interface MoodDataPoint {
@@ -39,7 +40,64 @@ export interface GlobalStats {
   }[];
 }
 
+// --- EMOTION DATA CONSTANTS ---
+
+export const EMOTIONS = [
+  "Joy",
+  "Sadness",
+  "Anxiety",
+  "Calm",
+  "Anger",
+] as const;
+
+export type EmotionType = typeof EMOTIONS[number];
+
+export const EMOTION_COLORS: Record<EmotionType, string> = {
+  Joy: "#fbbf24", // amber-400
+  Sadness: "#60a5fa", // blue-400
+  Anxiety: "#fb923c", // orange-400
+  Calm: "#94a3b8", // slate-400
+  Anger: "#f87171", // red-400
+};
+
+export const EMOTION_DEFINITIONS: Record<EmotionType, string> = {
+  Joy: "A feeling of great pleasure and happiness.",
+  Sadness: "Emotional pain associated with feelings of disadvantage, loss, or sorrow.",
+  Anxiety: "A feeling of worry, nervousness, or unease about an uncertain outcome.",
+  Calm: "A state of tranquility, free from agitation or strong emotion.",
+  Anger: "A strong feeling of annoyance, displeasure, or hostility.",
+};
+
 // --- MOCK DATA ---
+
+// Helper to generate conversation-specific trends
+const generateConversationTrends = (durationMinutes: number) => {
+  const data = [];
+  const step = Math.max(1, Math.floor(durationMinutes / 10)); // ~10 points per graph
+
+  for (let i = 0; i <= durationMinutes; i += step) {
+    // Base probabilities
+    let rawValues: Record<string, number> = {};
+    EMOTIONS.forEach(e => {
+      let val = Math.random();
+      // Add some noise/bias to make it look active
+      rawValues[e] = val;
+    });
+
+    // Normalize
+    const total = Object.values(rawValues).reduce((a, b) => a + b, 0);
+    const normalizedValues: any = {
+      time: new Date(0, 0, 0, 0, i).toLocaleTimeString([], { minute: '2-digit', second: '2-digit' })
+    };
+
+    EMOTIONS.forEach(e => {
+      normalizedValues[e] = rawValues[e] / total;
+    });
+
+    data.push(normalizedValues);
+  }
+  return data;
+};
 
 export const MOCK_CONVERSATIONS: Conversation[] = [
   {
@@ -101,6 +159,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
         sentiment: "neutral", // Relief
       },
     ],
+    emotionTrends: generateConversationTrends(45), // 45 min conversation (mock)
   },
   {
     id: "conv-2",
@@ -122,6 +181,7 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
       { id: "t3", speaker: "Other", text: "Coffee hasn't kicked in yet?", timestamp: "00:10", sentiment: "positive" },
       { id: "t4", speaker: "You", text: "Exactly. But I have the report ready.", timestamp: "00:15", sentiment: "positive" },
     ],
+    emotionTrends: generateConversationTrends(15),
   },
   {
     id: "conv-3",
@@ -142,7 +202,8 @@ export const MOCK_CONVERSATIONS: Conversation[] = [
       { id: "t1", speaker: "Other", text: "The price point is a bit higher than we budgeted.", timestamp: "05:20", sentiment: "negative" },
       { id: "t2", speaker: "You", text: "I understand. However, consider the long-term support included.", timestamp: "05:25", sentiment: "positive" },
       { id: "t3", speaker: "Other", text: "That is a good point.", timestamp: "05:35", sentiment: "neutral" },
-    ]
+    ],
+    emotionTrends: generateConversationTrends(30),
   },
 ];
 
@@ -184,34 +245,6 @@ export const MOCK_GLOBAL_STATS: GlobalStats = {
       action: "Try to move high-stakes negotiations to after 11 AM when your vocal energy is higher.",
     },
   ],
-};
-
-// --- EMOTION DATA CONSTANTS ---
-
-export const EMOTIONS = [
-  "Joy",
-  "Sadness",
-  "Anxiety",
-  "Calm",
-  "Anger",
-] as const;
-
-export type EmotionType = typeof EMOTIONS[number];
-
-export const EMOTION_COLORS: Record<EmotionType, string> = {
-  Joy: "#fbbf24", // amber-400
-  Sadness: "#60a5fa", // blue-400
-  Anxiety: "#fb923c", // orange-400
-  Calm: "#94a3b8", // slate-400
-  Anger: "#f87171", // red-400
-};
-
-export const EMOTION_DEFINITIONS: Record<EmotionType, string> = {
-  Joy: "A feeling of great pleasure and happiness.",
-  Sadness: "Emotional pain associated with feelings of disadvantage, loss, or sorrow.",
-  Anxiety: "A feeling of worry, nervousness, or unease about an uncertain outcome.",
-  Calm: "A state of tranquility, free from agitation or strong emotion.",
-  Anger: "A strong feeling of annoyance, displeasure, or hostility.",
 };
 
 // Generate 24h of mock data where values sum to 1.0

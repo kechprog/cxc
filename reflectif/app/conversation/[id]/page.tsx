@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 import { MOCK_CONVERSATIONS } from "@/lib/data";
 import { MoodHeader } from "@/components/MoodHeader";
 import { ChatTranscript } from "@/components/ChatTranscript";
-import { FiCheckCircle } from "react-icons/fi";
+import { EmotionChart } from "@/components/EmotionChart";
+import { EMOTIONS, EMOTION_COLORS } from "@/lib/data";
+import { FiCheckCircle, FiActivity } from "react-icons/fi";
 
 // Correctly type params as a Promise for Next.js 15
 export default async function ConversationPage({
@@ -27,7 +29,33 @@ export default async function ConversationPage({
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-12">
                 {/* Main Content: Transcript */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="lg:col-span-2 space-y-12">
+                    {/* Emotion Trend Graph */}
+                    <div className="glass p-8 rounded-3xl border-violet-500/20 shadow-[0_0_50px_rgba(139,92,246,0.05)]">
+                        <div className="flex items-center justify-between mb-8">
+                            <h2 className="text-lg font-medium text-white flex items-center gap-2">
+                                <FiActivity className="text-violet-400" />
+                                Emotional Journey
+                            </h2>
+                            <div className="text-xs text-zinc-500 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                                Duration: {conversation.emotionTrends?.length ? Math.floor(conversation.emotionTrends.length * 10) : 0} min
+                            </div>
+                        </div>
+                        <div className="h-[300px] w-full">
+                            <EmotionChart data={conversation.emotionTrends} />
+                        </div>
+
+                        {/* Mini Legend for this chart */}
+                        <div className="mt-6 flex flex-wrap gap-4 justify-center">
+                            {EMOTIONS.map((emotion) => (
+                                <div key={emotion} className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: EMOTION_COLORS[emotion] }} />
+                                    <span className="text-xs text-zinc-400">{emotion}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
                     <ChatTranscript transcript={conversation.transcript} />
                 </div>
 
