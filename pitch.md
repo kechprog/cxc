@@ -75,6 +75,6 @@ This is the "wow" moment. Build the entire demo around making this single moment
 | Criteria | How We Hit It |
 |---|---|
 | Innovation | Passive voice-based EQ training is not available in consumer tools today |
-| Technical Complexity | Voice fingerprinting + Hume.ai emotion analysis + LLM synthesis + RAG memory — not a 1-prompt project |
+| Technical Complexity | GPU-accelerated voice identification + AudioPod speaker splitting + Hume.ai 48-emotion analysis + LLM synthesis + RAG memory — not a 1-prompt project |
 | Real-World Application | Universal — anyone who talks to people can use this. Mental health, professional development, relationships |
 | "Wow" Factor | The moment the model catches an emotion your words hid is visceral and immediately relatable |

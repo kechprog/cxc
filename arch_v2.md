@@ -9,10 +9,10 @@
 ## Processing Pipeline
 
 ```
-1. Upload wav to endpoint
-2. Speaker diarization (segment speakers)
-3. Identify which speaker is the user (voice fingerprinting, see below)
-4. Hume.ai — emotion analysis on audio (word-level sentiment)
+1. Upload audio to endpoint
+2. AudioPod — split speakers into separate audio tracks
+3. Speaker-ID service — match each speaker track against known voices (returns voice_id or null)
+4. Hume.ai — per-speaker transcription + 48 emotion scores per utterance
 5. LLM call — produces ConversationAnalysis JSON + core memory update delta
 6. Store:
    - DB: full ConversationAnalysis JSON (structured)
@@ -21,10 +21,18 @@
 7. Return ConversationAnalysis JSON to frontend
 ```
 
-### User Identification via Voice Fingerprinting
-During onboarding, the user speaks (onboarding interview). A voice embedding is stored.
-On each conversation upload, speakers are matched against this embedding to identify the user.
-// TODO: Evaluate accuracy and fallback strategy if fingerprinting fails.
+### Speaker Identification
+Self-hosted Python service (services/speaker-id/) using SpeechBrain's ECAPA-TDNN model.
+Runs on GPU, stores 192-dim voice embeddings in SQLite.
+
+- POST /enroll — audio in, voice_id out (stored in DB)
+- POST /match — audio in, best matching voice_id out (or null if no match above threshold)
+
+During onboarding, the user's voice is enrolled. On each conversation upload, each separated
+speaker track is sent to /match. Known voices get a persistent voice_id (UUID) across
+conversations. Unknown speakers are labeled Speaker A/B/C.
+
+This replaces Azure Speaker Recognition (retired Sept 2025).
 
 ### Core User File (RAG)
 A living document the LLM maintains about the user. Two things can write to it:
@@ -185,7 +193,9 @@ Collects:
 
 ## Open Questions
 
-- EmotionScores type: which emotions? Align with Hume.ai's output categories.
-- Voice fingerprinting accuracy and fallback UX if identification fails.
+- EmotionScores type: Hume returns 48 emotions per utterance. Need to decide whether to use all 48,
+  reduce to a subset, or map to our own categories for the LLM and frontend.
 - RAG summary format: templated extraction from ConversationAnalysis vs. separately generated markdown.
 - Core memory backup/recovery strategy (designed but not implemented).
+- Speaker-ID threshold tuning (currently 0.25 cosine similarity — may need adjustment with real data).
+- Fallback UX if speaker identification fails or is ambiguous.

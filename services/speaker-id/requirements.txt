@@ -1,0 +1,6 @@
+torch
+torchaudio
+speechbrain
+fastapi
+uvicorn[standard]
+python-multipart
