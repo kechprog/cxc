@@ -5,6 +5,7 @@ export function initSchema(db: Database.Database): void {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       voice_id TEXT,
+      backboard_assistant_id TEXT,
       created_at TEXT NOT NULL
     );
 
@@ -66,5 +67,8 @@ export function initSchema(db: Database.Database): void {
   const columns = db.pragma("table_info(users)") as { name: string }[];
   if (!columns.some((c) => c.name === "voice_id")) {
     db.exec(`ALTER TABLE users ADD COLUMN voice_id TEXT`);
+  }
+  if (!columns.some((c) => c.name === "backboard_assistant_id")) {
+    db.exec(`ALTER TABLE users ADD COLUMN backboard_assistant_id TEXT`);
   }
 }

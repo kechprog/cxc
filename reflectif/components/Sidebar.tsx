@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { FiMic, FiBarChart2, FiMessageSquare, FiUser, FiX } from "react-icons/fi";
+import { FiMic, FiBarChart2, FiMessageSquare, FiUser, FiX, FiLogOut } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import type { ConversationAnalysisListItem } from "@/lib/types";
 
@@ -110,7 +110,7 @@ export function Sidebar({
             </div>
 
             {/* Footer / Profile */}
-            <div className="p-4 border-t border-white/10">
+            <div className="p-4 border-t border-white/10 space-y-1">
                 <Link
                     href="/profile-setup"
                     className="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-all duration-200 group"
@@ -120,6 +120,15 @@ export function Sidebar({
                     </div>
                     <span className="font-medium text-sm">Set Up Profile</span>
                 </Link>
+                <a
+                    href="/auth/logout"
+                    className="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-white/5 transition-all duration-200 group"
+                >
+                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
+                        <FiLogOut className="text-zinc-500 group-hover:text-red-400 transition-colors" />
+                    </div>
+                    <span className="font-medium text-sm">Log Out</span>
+                </a>
             </div>
         </motion.aside>
     );

@@ -14,6 +14,7 @@ import type {
 export type UserRow = {
   id: string;
   voice_id: string | null;
+  backboard_assistant_id: string | null;
   created_at: string;
 };
 
@@ -71,6 +72,7 @@ export function userFromRow(row: UserRow): User {
   return {
     id: row.id,
     voiceId: row.voice_id,
+    backboardAssistantId: row.backboard_assistant_id,
     createdAt: row.created_at,
   };
 }
@@ -79,6 +81,7 @@ export function userToRow(user: User): UserRow {
   return {
     id: user.id,
     voice_id: user.voiceId,
+    backboard_assistant_id: user.backboardAssistantId,
     created_at: user.createdAt,
   };
 }

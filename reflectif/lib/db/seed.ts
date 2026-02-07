@@ -23,6 +23,7 @@ export function seedDb(db: Database.Database): void {
   const user: User = {
     id: MOCK_USER_ID,
     voiceId: null,
+    backboardAssistantId: null,
     createdAt: new Date().toISOString(),
   };
   handlers.createUser(user);
