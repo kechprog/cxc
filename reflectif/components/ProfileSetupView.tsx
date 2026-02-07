@@ -224,7 +224,7 @@ export function ProfileSetupView() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto py-20 px-6 text-center">
+        <div className="max-w-2xl mx-auto py-10 lg:py-20 px-4 lg:px-6 text-center">
             <AnimatePresence mode="wait">
                 {step === "intro" && (
                     <motion.div
@@ -261,7 +261,7 @@ export function ProfileSetupView() {
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 1.05 }}
-                        className="glass p-12 rounded-3xl border border-white/10 space-y-10"
+                        className="glass p-6 lg:p-12 rounded-2xl lg:rounded-3xl border border-white/10 space-y-6 lg:space-y-10"
                     >
                         {/* Prompt */}
                         <div>
@@ -404,7 +404,7 @@ export function ProfileSetupView() {
                         key="complete"
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="glass p-12 rounded-3xl border border-emerald-500/20 text-center space-y-6"
+                        className="glass p-6 lg:p-12 rounded-2xl lg:rounded-3xl border border-emerald-500/20 text-center space-y-6"
                     >
                         <div className="w-20 h-20 mx-auto rounded-full bg-emerald-500/20 flex items-center justify-center">
                             <FiCheck className="w-10 h-10 text-emerald-400" />

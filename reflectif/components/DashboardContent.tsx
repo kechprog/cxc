@@ -11,16 +11,16 @@ export function DashboardContent({ conversation, transcript, showChatButton, onC
     const transcriptMessages = transcript;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-6 lg:space-y-8">
             {/* Header */}
-            <div className="text-center py-8">
-                <div className="text-6xl mb-4 animate-bounce-slow inline-block">
+            <div className="text-center py-4 lg:py-8">
+                <div className="text-5xl lg:text-6xl mb-4 animate-bounce-slow inline-block">
                     {conversation.emoji}
                 </div>
-                <h1 className="text-2xl font-light text-white mb-2">
+                <h1 className="text-xl lg:text-2xl font-light text-white mb-2">
                     {conversation.label}
                 </h1>
-                <p className="text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+                <p className="text-sm lg:text-base text-zinc-400 max-w-2xl mx-auto leading-relaxed">
                     {conversation.summary}
                 </p>
                 <div className="mt-4 text-xs text-zinc-500 uppercase tracking-widest">
@@ -28,18 +28,18 @@ export function DashboardContent({ conversation, transcript, showChatButton, onC
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
                 {/* Main Content */}
-                <div className="lg:col-span-2 space-y-8">
+                <div className="lg:col-span-2 space-y-6 lg:space-y-8">
                     {/* Emotion Trend Graph */}
-                    <div className="glass p-8 rounded-3xl border-violet-500/20 shadow-[0_0_50px_rgba(139,92,246,0.05)]">
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-lg font-medium text-white flex items-center gap-2">
+                    <div className="glass p-4 lg:p-8 rounded-2xl lg:rounded-3xl border-violet-500/20 shadow-[0_0_50px_rgba(139,92,246,0.05)]">
+                        <div className="flex items-center justify-between mb-4 lg:mb-8">
+                            <h2 className="text-base lg:text-lg font-medium text-white flex items-center gap-2">
                                 <FiActivity className="text-violet-400" />
                                 Emotional Journey
                             </h2>
                         </div>
-                        <div className="h-[300px] w-full">
+                        <div className="h-[220px] lg:h-[300px] w-full">
                             <EmotionChart data={conversation.scores} />
                         </div>
                         {/* Mini Legend - We can optionally show this or let the chart handle it dynamically */}
@@ -47,12 +47,12 @@ export function DashboardContent({ conversation, transcript, showChatButton, onC
 
                     {/* Dynamics */}
                     <div className="space-y-4">
-                        <h2 className="text-lg font-medium text-white flex items-center gap-2 px-2">
+                        <h2 className="text-base lg:text-lg font-medium text-white flex items-center gap-2 px-2">
                             <FiActivity className="text-indigo-400" />
                             Conversation Phases
                         </h2>
                         {conversation.dynamics.map((phase, i) => (
-                            <div key={i} className="glass p-5 rounded-2xl flex gap-4 items-start border-l-4 border-l-indigo-500/40">
+                            <div key={i} className="glass p-4 lg:p-5 rounded-2xl flex gap-3 lg:gap-4 items-start border-l-4 border-l-indigo-500/40">
                                 <div className="text-xs font-mono text-zinc-500 mt-1 min-w-[60px]">
                                     {Math.floor(phase.startTime / 60)}:{(phase.startTime % 60).toString().padStart(2, '0')}
                                 </div>
@@ -70,7 +70,7 @@ export function DashboardContent({ conversation, transcript, showChatButton, onC
 
                 {/* Sidebar */}
                 <div className="space-y-6">
-                    <div className="glass p-6 rounded-2xl sticky top-8">
+                    <div className="glass p-4 lg:p-6 rounded-2xl sticky top-8">
                         <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
                             Detected Patterns
                         </h3>

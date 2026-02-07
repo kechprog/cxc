@@ -51,15 +51,29 @@ export class DbHandlers {
     const row = userToRow(user);
     this.db
       .prepare(
-        `INSERT INTO users (id, voice_id, created_at) VALUES (?, ?, ?)`
+        `INSERT INTO users (id, voice_id, backboard_assistant_id, created_at) VALUES (?, ?, ?, ?)`
       )
-      .run(row.id, row.voice_id, row.created_at);
+      .run(row.id, row.voice_id, row.backboard_assistant_id, row.created_at);
   }
 
   updateUserVoiceId(userId: string, voiceId: string): void {
     this.db
       .prepare(`UPDATE users SET voice_id = ? WHERE id = ?`)
       .run(voiceId, userId);
+  }
+
+  ensureUser(id: string): void {
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO users (id, voice_id, backboard_assistant_id, created_at) VALUES (?, NULL, NULL, ?)`
+      )
+      .run(id, new Date().toISOString());
+  }
+
+  updateUserBackboardAssistantId(userId: string, assistantId: string): void {
+    this.db
+      .prepare(`UPDATE users SET backboard_assistant_id = ? WHERE id = ?`)
+      .run(assistantId, userId);
   }
 
   getUser(id: string): User | null {
