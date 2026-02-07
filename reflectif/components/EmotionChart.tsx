@@ -10,7 +10,7 @@ import {
     ResponsiveContainer,
     Legend
 } from "recharts";
-import { MOCK_EMOTION_TRENDS, EMOTIONS, EMOTION_COLORS } from "@/lib/data";
+import { MOCK_CONVERSATIONS, EMOTIONS, EMOTION_COLORS } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
 const toPercent = (decimal: number, fixed = 0) => `${(decimal * 100).toFixed(fixed)}%`;
@@ -42,12 +42,24 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
 };
 
-export function EmotionChart({ data = MOCK_EMOTION_TRENDS, className }: { data?: any[], className?: string }) {
+export function EmotionChart({ data, className }: { data?: any[], className?: string }) {
+    // Adapter: Handle arch_v2 structure if needed
+    // If data comes in as { timestamp, scores: {} }, flatten it for Recharts
+    const chartData = (data || MOCK_CONVERSATIONS[0].scores).map((point: any) => {
+        if (point.scores) {
+            return {
+                time: new Date(point.timestamp * 1000).toISOString().substr(14, 5), // Generic formatted time helper
+                ...point.scores
+            };
+        }
+        return point;
+    });
+
     return (
         <div className={cn("w-full h-full", className)}>
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                    data={data}
+                    data={chartData}
                     margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                 >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -71,17 +83,21 @@ export function EmotionChart({ data = MOCK_EMOTION_TRENDS, className }: { data?:
                     <Tooltip content={<CustomTooltip />} />
                     <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
 
-                    {EMOTIONS.map((emotion) => (
-                        <Line
-                            key={emotion}
-                            type="monotone"
-                            dataKey={emotion}
-                            stroke={EMOTION_COLORS[emotion]}
-                            strokeWidth={3}
-                            dot={false}
-                            activeDot={{ r: 6, fill: "#fff", stroke: EMOTION_COLORS[emotion] }}
-                        />
-                    ))}
+                    {/* Dynamic Lines based on data keys (handling Hume.ai's large taxonomy) */}
+                    {chartData.length > 0 && Object.keys(chartData[0])
+                        .filter(key => key !== 'time')
+                        .map((emotion, index) => (
+                            <Line
+                                key={emotion}
+                                type="monotone"
+                                dataKey={emotion}
+                                // Fallback color generation if not in preset
+                                stroke={EMOTION_COLORS[emotion] || `hsl(${(index * 137) % 360}, 70%, 60%)`}
+                                strokeWidth={2}
+                                dot={false}
+                                activeDot={{ r: 6, fill: "#fff", stroke: EMOTION_COLORS[emotion] || "#fff" }}
+                            />
+                        ))}
                 </LineChart>
             </ResponsiveContainer>
         </div>

@@ -1,0 +1,50 @@
+/**
+ * Chat (AI Therapist) types for Reflectif
+ *
+ * Based on arch_v2.md and context_dump.md
+ *
+ * Each ConversationAnalysis has its own linked Chat.
+ * The AI therapist has context of that specific conversation for discussion.
+ * - Has access to RAG (core user file + conversation summaries)
+ * - Can update core memory based on what user shares
+ * - Stateful within session; across sessions relies on RAG + core memory
+ */
+
+/**
+ * A single message in a chat session.
+ */
+export type ChatMessage = {
+  id: string;
+  /** Who sent this message */
+  role: 'user' | 'assistant';
+  /** Message content */
+  content: string;
+  /** ISO timestamp */
+  createdAt: string;
+};
+
+/**
+ * A chat session linked to a specific conversation analysis.
+ */
+export type Chat = {
+  id: string;
+  /** The conversation analysis this chat is linked to */
+  conversationAnalysisId: string;
+  /** ISO timestamp when chat was created */
+  createdAt: string;
+  /** All messages in this chat */
+  messages: ChatMessage[];
+};
+
+/**
+ * Lightweight version for sidebar list.
+ */
+export type ChatListItem = {
+  id: string;
+  /** The conversation analysis this chat is linked to */
+  conversationAnalysisId: string;
+  /** Preview text (first message or summary) */
+  preview: string;
+  /** ISO timestamp */
+  createdAt: string;
+};

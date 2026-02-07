@@ -1,6 +1,7 @@
 import { EmotionChart } from "@/components/EmotionChart";
-import { MOCK_GLOBAL_STATS, EMOTION_DEFINITIONS, EMOTION_COLORS, EMOTIONS } from "@/lib/data";
-import { FiTrendingUp, FiAlertCircle, FiSun, FiActivity, FiInfo } from "react-icons/fi";
+import { MOCK_USER_PROGRESS, EMOTION_DEFINITIONS, EMOTION_COLORS, EMOTIONS } from "@/lib/data";
+import { FiTrendingUp, FiAlertCircle, FiSun, FiActivity, FiInfo, FiAward, FiArrowUp } from "react-icons/fi";
+import { cn } from "@/lib/utils";
 
 export default function GlobalSummaryPage() {
     return (
@@ -8,94 +9,98 @@ export default function GlobalSummaryPage() {
 
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-light text-white mb-2">Global Insights</h1>
+                <h1 className="text-3xl font-light text-white mb-2">My Growth (EQ Trainer)</h1>
                 <p className="text-zinc-400">
-                    Your emotional landscape over the last 24 hours.
+                    Tracking your emotional intelligence and communication skills over time.
                 </p>
             </div>
 
-            {/* Main Chart Section */}
+            {/* EQ Dimensions Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                {MOCK_USER_PROGRESS.eq.map((dim) => (
+                    <div key={dim.name} className="glass p-5 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-violet-500/30 transition-colors">
+                        <div className="relative z-10">
+                            <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-1 truncate">
+                                {dim.name.replace('_', ' ')}
+                            </h3>
+                            <div className="text-3xl font-light text-white mb-2">{(dim.score * 100).toFixed(0)}</div>
+                            <div className="text-xs text-violet-300 flex items-center gap-1">
+                                <FiArrowUp /> {dim.trend}
+                            </div>
+                        </div>
+                        {/* Progress Bar Background */}
+                        <div className="absolute bottom-0 left-0 h-1 bg-violet-500 transition-all duration-1000" style={{ width: `${dim.score * 100}%` }} />
+                        <div className="absolute bottom-0 left-0 w-full h-1 bg-white/10" />
+                    </div>
+                ))}
+            </div>
+
+            {/* Progress & Improvements Split */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                {/* Wins / Progress */}
+                <div className="space-y-6">
+                    <h2 className="text-xl font-light text-white flex items-center gap-2">
+                        <FiAward className="text-emerald-400" />
+                        Recent Progress
+                    </h2>
+                    <div className="space-y-4">
+                        {MOCK_USER_PROGRESS.progress.map((item, i) => (
+                            <div key={i} className="glass p-6 rounded-2xl border-l-4 border-l-emerald-500/50">
+                                <h3 className="font-medium text-emerald-100 mb-2">{item.observation}</h3>
+                                <div className="flex flex-wrap gap-2">
+                                    {item.evidence.map((ev, j) => (
+                                        <span key={j} className="text-xs bg-emerald-500/10 text-emerald-300 px-2 py-1 rounded border border-emerald-500/20">
+                                            Evidence: {ev}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Areas for Improvement */}
+                <div className="space-y-6">
+                    <h2 className="text-xl font-light text-white flex items-center gap-2">
+                        <FiTrendingUp className="text-amber-400" />
+                        Focus Areas
+                    </h2>
+                    <div className="space-y-4">
+                        {MOCK_USER_PROGRESS.improvements.map((item, i) => (
+                            <div key={i} className="glass p-6 rounded-2xl border-l-4 border-l-amber-500/50">
+                                <h3 className="font-medium text-amber-100 mb-2">{item.observation}</h3>
+                                <p className="text-sm text-zinc-400 mb-3 italic">
+                                    "{item.suggestion}"
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    {item.evidence.map((ev, j) => (
+                                        <span key={j} className="text-xs bg-amber-500/10 text-amber-300 px-2 py-1 rounded border border-amber-500/20">
+                                            Evidence: {ev}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+            </div>
+
+            {/* Raw Emotional Data (Legacy View) */}
             <div className="glass p-8 rounded-3xl border-violet-500/20 shadow-[0_0_50px_rgba(139,92,246,0.05)]">
                 <div className="flex items-center justify-between mb-8">
                     <h2 className="text-lg font-medium text-white flex items-center gap-2">
                         <FiActivity className="text-violet-400" />
-                        Emotion Distribution
+                        24h Emotion Distribution
                     </h2>
-                    <div className="text-xs text-zinc-500 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
-                        Probability Density (∑ = 1.0)
-                    </div>
                 </div>
                 <div className="h-[400px] w-full">
+                    {/* Reusing Mock Data for chart as UserProgress doesn't have raw timeseries, assuming we fetch it separately or pass it in */}
                     <EmotionChart />
                 </div>
             </div>
 
-            {/* Definitions Legend */}
-            <div>
-                <h3 className="text-sm font-semibold text-zinc-500 uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <FiInfo /> Emotion Definitions
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                    {EMOTIONS.map((emotion) => (
-                        <div key={emotion} className="glass p-4 rounded-xl border border-white/5 hover:bg-white/5 transition-colors">
-                            <div className="flex items-center gap-2 mb-2">
-                                <div className="w-3 h-3 rounded-full shadow-lg shadow-black/50" style={{ backgroundColor: EMOTION_COLORS[emotion] }} />
-                                <h4 className="font-medium text-zinc-200 text-sm">{emotion}</h4>
-                            </div>
-                            <p className="text-xs text-zinc-500 leading-relaxed">
-                                {EMOTION_DEFINITIONS[emotion]}
-                            </p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Analysis Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-
-                {/* Patterns Column */}
-                <div className="space-y-6 lg:col-span-2">
-                    <h2 className="text-lg font-medium text-white flex items-center gap-2">
-                        <FiTrendingUp className="text-indigo-400" />
-                        Detected Patterns
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {MOCK_GLOBAL_STATS.patterns.map((pattern, i) => (
-                            <div key={i} className="glass p-6 rounded-2xl hover:bg-white/5 transition-colors group">
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-300 group-hover:bg-indigo-500/30 transition-colors">
-                                        {/* Icon mapping could be improved, simplifying for mock */}
-                                        <FiAlertCircle />
-                                    </div>
-                                    <h3 className="font-medium text-indigo-100">{pattern.title}</h3>
-                                </div>
-                                <p className="text-sm text-zinc-400 leading-relaxed">
-                                    {pattern.description}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Suggestions Column */}
-                <div className="space-y-6">
-                    <h2 className="text-lg font-medium text-white flex items-center gap-2">
-                        <FiSun className="text-amber-400" />
-                        Suggestions
-                    </h2>
-                    <div className="space-y-4">
-                        {MOCK_GLOBAL_STATS.suggestions.map((suggestion, i) => (
-                            <div key={i} className="glass p-6 rounded-2xl border-l-4 border-l-amber-500/50">
-                                <h3 className="font-medium text-amber-100 mb-2">{suggestion.title}</h3>
-                                <p className="text-sm text-zinc-400">
-                                    {suggestion.action}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-            </div>
         </div>
     );
 }

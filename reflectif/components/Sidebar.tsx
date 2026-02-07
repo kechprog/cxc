@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { FiMic, FiBarChart2, FiMessageSquare, FiSettings } from "react-icons/fi";
+import { FiMic, FiBarChart2, FiMessageSquare, FiSettings, FiUser } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { MOCK_CONVERSATIONS } from "@/lib/data";
 
@@ -38,73 +38,60 @@ export function Sidebar() {
                     label="Global Summary"
                     isActive={pathname === "/global-summary"}
                 />
+                <NavLink
+                    href="/assistant"
+                    icon={<FiMessageSquare />}
+                    label="Observe Yourself"
+                    isActive={pathname === "/assistant"}
+                />
             </nav>
 
-            <div className="mx-4 border-t border-white/5" />
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto py-4 space-y-6 custom-scrollbar">
 
-            {/* AI Assistant CTA */}
-            <div className="p-4">
-                <Link
-                    href="/assistant"
-                    className={cn(
-                        "block p-4 rounded-xl border transition-all duration-200 group text-left",
-                        pathname === "/assistant"
-                            ? "bg-violet-500/10 border-violet-500/30 shadow-[0_0_20px_rgba(139,92,246,0.1)]"
-                            : "bg-gradient-to-br from-white/5 to-white/0 border-white/10 hover:border-violet-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.1)]"
-                    )}
-                >
-                    <div className="flex items-center gap-2 mb-2 text-violet-300">
-                        <FiMessageSquare className="w-4 h-4" />
-                        <span className="text-sm font-medium tracking-wide">Progress Check-in</span>
+                {/* Section: Recent Conversations (Raw Analysis) */}
+                <div>
+                    <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3 px-2">
+                        Recent Conversations
+                    </h3>
+                    <div className="space-y-1">
+                        {MOCK_CONVERSATIONS.map((conv) => (
+                            <Link
+                                key={conv.id}
+                                href={`/conversation/${conv.id}`}
+                                className={cn(
+                                    "block p-3 rounded-lg text-sm transition-all duration-200",
+                                    pathname === `/conversation/${conv.id}`
+                                        ? "bg-white/10 text-white shadow-[0_0_15px_rgba(255,255,255,0.05)] border border-white/5"
+                                        : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+                                )}
+                            >
+                                <div className="flex items-center justify-between mb-1">
+                                    <span className="font-medium text-white group-hover:text-violet-300 transition-colors">
+                                        {conv.emoji} {conv.label}
+                                    </span>
+                                </div>
+                                <div className="text-[10px] text-zinc-500 line-clamp-1">
+                                    {new Date(conv.analyzedAt).toLocaleDateString()} • {conv.summary}
+                                </div>
+                            </Link>
+                        ))}
                     </div>
-                    <p className="text-xs text-zinc-400 leading-relaxed group-hover:text-zinc-300 transition-colors">
-                        Let's discuss changes or improvements in the last 3-4 days.
-                    </p>
-                </Link>
-            </div>
-
-            <div className="mx-4 border-t border-white/5" />
-
-            {/* Recent Conversations */}
-            <div className="flex-1 overflow-y-auto p-4">
-                <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">
-                    Recent
-                </h3>
-                <div className="space-y-1">
-                    {MOCK_CONVERSATIONS.map((conv) => (
-                        <Link
-                            key={conv.id}
-                            href={`/conversation/${conv.id}`}
-                            className={cn(
-                                "block p-3 rounded-lg text-sm transition-all duration-200",
-                                pathname === `/conversation/${conv.id}`
-                                    ? "bg-white/10 text-white"
-                                    : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
-                            )}
-                        >
-                            <div className="flex items-center justify-between">
-                                <span className="font-medium truncate">
-                                    {new Date(conv.date).toLocaleDateString(undefined, {
-                                        month: "short",
-                                        day: "numeric",
-                                    })}
-                                </span>
-                                <span className="text-base">{conv.overallMood.emoji}</span>
-                            </div>
-                            <p className="truncate text-xs opacity-70 mt-1">
-                                {conv.overallMood.descriptor}
-                            </p>
-                        </Link>
-                    ))}
                 </div>
+
             </div>
 
-            {/* Footer */}
+            {/* Footer / Profile */}
             <div className="p-4 border-t border-white/10">
-                <button className="flex items-center gap-3 text-sm text-zinc-400 hover:text-white transition-colors w-full p-2 rounded-lg hover:bg-white/5">
-                    <FiSettings />
-                    <span>Settings</span>
-                </button>
+                <Link
+                    href="/profile-setup"
+                    className="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-all duration-200 group"
+                >
+                    <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/30 transition-colors">
+                        <FiUser className="text-violet-400" />
+                    </div>
+                    <span className="font-medium text-sm">Set Up Profile</span>
+                </Link>
             </div>
         </motion.aside>
     );
