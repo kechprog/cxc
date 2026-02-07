@@ -4,10 +4,9 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiMic, FiSquare, FiActivity } from "react-icons/fi";
 import Link from "next/link";
-import { MOCK_CONVERSATIONS } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
-export function RecordButton() {
+export function RecordButton({ latestConversationId }: { latestConversationId?: string }) {
     const [isRecording, setIsRecording] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0); // Mock timer
     const [showAnalysisLink, setShowAnalysisLink] = useState(false);
@@ -57,7 +56,7 @@ export function RecordButton() {
                         <h2 className="text-xl lg:text-2xl font-light text-zinc-300 mb-2">Conversation Processed</h2>
                         <div className="flex justify-center mt-4 lg:mt-6">
                             <Link
-                                href={`/conversation/${MOCK_CONVERSATIONS[0].id}`}
+                                href={`/conversation/${latestConversationId}`}
                                 className="group relative inline-flex items-center gap-3 px-6 py-3 lg:px-8 lg:py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(139,92,246,0.2)]"
                             >
                                 <span className="text-xl lg:text-2xl">😌</span>

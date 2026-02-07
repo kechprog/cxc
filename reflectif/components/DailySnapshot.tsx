@@ -4,23 +4,20 @@ import { motion } from "framer-motion";
 import { FiTrendingUp, FiTrendingDown, FiSun, FiActivity, FiClock } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { EmotionChart } from "@/components/EmotionChart";
-import { MOCK_CONVERSATIONS } from "@/lib/data";
+import type { ConversationAnalysis } from "@/lib/types";
 
-// Mock data for the daily snapshot (Consider moving this to user progress mock eventually)
-// TODO: API CALL - GET /api/user/progress (or tailored endpoint for daily snapshot)
-const TODAY_DATA = {
-    moodEmoji: MOCK_CONVERSATIONS[0].emoji,
-    moodLabel: MOCK_CONVERSATIONS[0].label,
-    trend: "stable",
-    trendLabel: "Consistent with observation",
-    suggestion: {
-        title: "Suggestions for you today",
-        text: "You seem a bit flat today. Try a quick 5-minute walk to reset your energy levels.",
-        action: "Start Breathing Exercise",
-    },
-};
-
-export function DailySnapshot() {
+export function DailySnapshot({ latestConversation }: { latestConversation?: ConversationAnalysis }) {
+    const TODAY_DATA = {
+        moodEmoji: latestConversation?.emoji ?? "😐",
+        moodLabel: latestConversation?.label ?? "No data",
+        trend: "stable",
+        trendLabel: "Consistent with observation",
+        suggestion: {
+            title: "Suggestions for you today",
+            text: "You seem a bit flat today. Try a quick 5-minute walk to reset your energy levels.",
+            action: "Start Breathing Exercise",
+        },
+    };
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -41,7 +38,7 @@ export function DailySnapshot() {
                     </div>
                 </div>
                 <div className="flex-1 w-full min-h-0">
-                    <EmotionChart data={MOCK_CONVERSATIONS[0].scores} className="h-full" />
+                    <EmotionChart data={latestConversation?.scores ?? []} className="h-full" />
                 </div>
             </div>
 

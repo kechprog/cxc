@@ -45,6 +45,17 @@ export type TranscriptSegment = {
 };
 
 /**
+ * A user-facing transcript message shown in the UI.
+ * Simplified view of a conversation turn with optional sentiment.
+ */
+export type TranscriptMessage = {
+  role: string;
+  text: string;
+  sentiment?: string;
+  timestamp?: string;
+};
+
+/**
  * Full transcript for a conversation.
  * This is the input to the LLM for analysis.
  */

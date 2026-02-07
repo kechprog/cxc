@@ -5,9 +5,9 @@ import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import { FiMic, FiBarChart2, FiMessageSquare, FiSettings, FiUser } from "react-icons/fi";
 import { cn } from "@/lib/utils";
-import { MOCK_CONVERSATIONS } from "@/lib/data";
+import type { ConversationAnalysisListItem } from "@/lib/types";
 
-export function Sidebar() {
+export function Sidebar({ conversations }: { conversations: ConversationAnalysisListItem[] }) {
     const pathname = usePathname();
 
     return (
@@ -55,8 +55,7 @@ export function Sidebar() {
                         Recent Conversations
                     </h3>
                     <div className="space-y-1">
-                        {/* TODO: API CALL - GET /api/conversations */}
-                        {MOCK_CONVERSATIONS.map((conv) => (
+                        {conversations.map((conv) => (
                             <Link
                                 key={conv.id}
                                 href={`/conversation/${conv.id}`}
@@ -73,7 +72,7 @@ export function Sidebar() {
                                     </span>
                                 </div>
                                 <div className="text-[10px] text-zinc-500 line-clamp-1">
-                                    {new Date(conv.analyzedAt).toLocaleDateString()} • {conv.summary}
+                                    {conv.analyzedAt.slice(0, 10)} • {conv.summary}
                                 </div>
                             </Link>
                         ))}

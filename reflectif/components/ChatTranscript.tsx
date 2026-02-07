@@ -1,6 +1,6 @@
 "use client";
 
-import { TranscriptMessage } from "@/lib/data";
+import { TranscriptMessage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 

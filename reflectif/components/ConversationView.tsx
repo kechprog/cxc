@@ -1,17 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ConversationAnalysis, MOCK_TRANSCRIPTS } from "@/lib/data";
+import type { ConversationAnalysis, TranscriptMessage } from "@/lib/types";
 import { AssistantChat } from "@/components/AssistantChat";
 import { DashboardContent } from "@/components/DashboardContent";
 import { FiCpu } from "react-icons/fi";
 import { motion } from "framer-motion";
 
-export function ConversationView({ conversation }: { conversation: ConversationAnalysis }) {
+export function ConversationView({ conversation, transcript }: { conversation: ConversationAnalysis, transcript: TranscriptMessage[] }) {
     const [viewMode, setViewMode] = useState<"dashboard" | "chat">("dashboard");
-
-    // Fallback transcript fetch
-    const transcript = MOCK_TRANSCRIPTS[conversation.id] || [];
 
     if (viewMode === "chat") {
         // CHAT VIEW (Split Screen)
@@ -43,7 +40,7 @@ export function ConversationView({ conversation }: { conversation: ConversationA
                 {/* RIGHT COLUMN: ANALYSIS CONTEXT (Read-Only Ref) */}
                 <div className="lg:col-span-7 space-y-6 overflow-y-auto pr-2 pb-20 custom-scrollbar opacity-80 hover:opacity-100 transition-opacity">
                     {/* Simplified Dashboard for Context */}
-                    <DashboardContent conversation={conversation} showChatButton={false} />
+                    <DashboardContent conversation={conversation} transcript={transcript} showChatButton={false} />
                 </div>
             </motion.div>
         );
@@ -65,31 +62,7 @@ export function ConversationView({ conversation }: { conversation: ConversationA
                     <span className="text-sm font-medium">Start AI Therapy Session</span>
                 </button>
             </div>
-            {/* DashboardContent handles transcript lookup internally now, but we can pass it explicitly if we want to reverse that decision. 
-                In DashboardContent.tsx, I added `const transcriptMessages = MOCK_TRANSCRIPTS[conversation.id]`.
-                For cleanliness, let's leave it as is, or removing the lookup in DashboardContent and passing it here.
-                
-                Actually, the previous tool call output for DashboardContent.tsx SHOWS that I added the lookup INSIDE DashboardContent.
-                So ConversationView doesn't strict need to pass it, BUT it's better architecture to pass it.
-                
-                However, DashboardContent.tsx signature is:
-                ({ conversation, showChatButton, onChatClick }: ...)
-                It does NOT accept `transcript` yet in the definition I wrote in Step 905?
-                Wait, I checked Step 905 output. I did NOT add `transcript` to the props interface in DashboardContent.
-                I only added `const transcriptMessages = ...` inside the body.
-                
-                So ConversationView works AS IS. 
-                Reference: Step 905 diff:
-                export function DashboardContent({ conversation, showChatButton, onChatClick }: { conversation: ConversationAnalysis, showChatButton?: boolean, onChatClick?: () => void }) {
-                
-                So I don't need to change `ConversationView` to pass transcript.
-                
-                BUT `ConversationView` has cleanups to do: imports.
-            */}
-            <DashboardContent conversation={conversation} showChatButton={true} onChatClick={() => setViewMode("chat")} />
+            <DashboardContent conversation={conversation} transcript={transcript} showChatButton={true} onChatClick={() => setViewMode("chat")} />
         </motion.div>
     );
 }
-
-// Extract Dashboard Content for reuse
-// (Removed local definition, imported instead)

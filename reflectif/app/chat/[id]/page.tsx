@@ -1,44 +1,29 @@
 import { notFound } from "next/navigation";
-import { MOCK_CHATS, MOCK_CONVERSATIONS } from "@/lib/data";
+import { DbHandlers } from "@/lib/db/handlers";
 import { AssistantChat } from "@/components/AssistantChat";
 import { DashboardContent } from "@/components/DashboardContent";
 import { FiArrowLeft } from "react-icons/fi";
 import Link from "next/link";
 
-// Correctly type params as a Promise for Next.js 15
 export default async function ChatPage({
     params,
 }: {
     params: Promise<{ id: string }>;
 }) {
     const { id } = await params;
+    const db = DbHandlers.getInstance();
 
-    // Find Chat Session
-    const chatSession = MOCK_CHATS.find((c) => c.id === id);
-
+    const chatSession = db.getChat(id);
     if (!chatSession) {
-        return (
-            <div className="min-h-screen flex items-center justify-center p-10 text-zinc-400 flex-col gap-4">
-                <h1 className="text-2xl text-white">Chat Session Not Found</h1>
-                <p>Requested ID: <span className="font-mono text-red-400">{id}</span></p>
-                <div className="p-4 bg-white/5 rounded-xl text-xs font-mono">
-                    Available: {MOCK_CHATS.map(c => c.id).join(", ")}
-                </div>
-            </div>
-        );
+        return notFound();
     }
 
-    // Find Related Conversation Analysis for Context
-    const conversation = MOCK_CONVERSATIONS.find(c => c.id === chatSession.conversationAnalysisId);
-
-    if (!conversation) {
-        return (
-            <div className="min-h-screen flex items-center justify-center p-10 text-zinc-400 flex-col gap-4">
-                <h1 className="text-2xl text-white">Analysis Context Not Found</h1>
-                <p>Linked Conversation ID: <span className="font-mono text-red-400">{chatSession.conversationAnalysisId}</span></p>
-            </div>
-        );
+    const conversationResult = db.getConversationAnalysis(chatSession.conversationAnalysisId);
+    if (!conversationResult) {
+        return notFound();
     }
+
+    const { transcripts, ...conversation } = conversationResult;
 
     return (
         <div className="h-[calc(100vh-80px)] max-w-[1600px] mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -59,15 +44,13 @@ export default async function ChatPage({
                     </Link>
                 </div>
                 <div className="flex-1 overflow-hidden relative flex flex-col">
-                    {/* Pass existing chat history if we had it, for now we let it init fresh or we could mock history in the chatSession */}
                     <AssistantChat context={conversation} />
                 </div>
             </div>
 
             {/* RIGHT COLUMN: ANALYSIS CONTEXT (Read-Only Ref) */}
             <div className="lg:col-span-7 space-y-6 overflow-y-auto pr-2 pb-20 custom-scrollbar opacity-80 hover:opacity-100 transition-opacity">
-                {/* Simplified Dashboard for Context */}
-                <DashboardContent conversation={conversation} showChatButton={false} />
+                <DashboardContent conversation={conversation} transcript={transcripts} showChatButton={false} />
             </div>
         </div>
     );
