@@ -1,8 +1,8 @@
 import {
-  extractSpeakers,
-  pollSpeakerJob,
-  downloadSpeakerAudio,
-} from "@/app/api/_lib/audiopod";
+  transcribeWithDiarization,
+  getSpeakerSegments,
+} from "@/app/api/_lib/assemblyai";
+import { extractAllSpeakerAudio } from "@/app/api/_lib/audio-utils";
 import { extractEmbedding, cosineSimilarity } from "@/app/api/_lib/speaker-id";
 import { analyzeProsody } from "@/app/api/_lib/hume";
 
@@ -24,33 +24,41 @@ export interface ConversationAnalysis {
 
 /**
  * Full conversation processing pipeline:
- * 1. AudioPod — split speakers into separate audio tracks
- * 2. Speaker-ID service — extract embedding, cosine similarity against user's stored embedding
- * 3. Hume — transcription + 48 emotion scores per utterance
+ * 1. AssemblyAI — transcription + speaker diarization (who spoke when)
+ * 2. ffmpeg — extract audio segments per speaker
+ * 3. Speaker-ID service — extract embedding, cosine similarity against user's stored embedding
+ * 4. Hume — transcription + 48 emotion scores per utterance (per speaker audio)
  */
 export async function processConversation(
   audioBuffer: Buffer,
   filename: string,
   userEmbedding?: number[] | null
 ): Promise<ConversationAnalysis> {
-  // Step 1: Split speakers via AudioPod
-  const { id: jobId } = await extractSpeakers(audioBuffer, filename);
-  const extraction = await pollSpeakerJob(jobId);
+  // Step 1: Get diarized transcript from AssemblyAI
+  console.log("[pipeline] Starting AssemblyAI transcription with diarization...");
+  const transcript = await transcribeWithDiarization(audioBuffer, filename);
 
-  const speakers = extraction.result.speakers;
-  if (!speakers?.length) {
+  if (transcript.speakers.length === 0) {
     throw new Error("No speakers detected in audio");
   }
 
-  // Step 2: For each speaker — download, identify, analyze
+  // Step 2: Extract audio segments per speaker using ffmpeg
+  console.log("[pipeline] Extracting audio per speaker...");
+  const speakerSegments = getSpeakerSegments(transcript);
+  const speakerAudio = await extractAllSpeakerAudio(audioBuffer, speakerSegments);
+
+  if (speakerAudio.size === 0) {
+    throw new Error("Failed to extract any speaker audio");
+  }
+
+  // Step 3: For each speaker — identify and analyze emotions
+  console.log("[pipeline] Analyzing speakers...");
   let letterIndex = 0;
   const results = await Promise.all(
-    speakers.map(async (speaker) => {
-      let audio: Buffer;
-      try {
-        audio = await downloadSpeakerAudio(speaker.download_url);
-      } catch {
-        return { similarity: 0, utterances: [] as Utterance[] };
+    transcript.speakers.map(async (speaker) => {
+      const audio = speakerAudio.get(speaker);
+      if (!audio) {
+        return { speaker, similarity: 0, utterances: [] as Utterance[] };
       }
 
       // Extract embedding and compare against user's enrolled voice
@@ -59,29 +67,44 @@ export async function processConversation(
         if (userEmbedding) {
           const embedding = await extractEmbedding(audio);
           similarity = cosineSimilarity(embedding, userEmbedding);
-          console.log(`Speaker ${speaker.label}: similarity=${similarity.toFixed(4)}`);
+          console.log(`[pipeline] Speaker ${speaker}: similarity=${similarity.toFixed(4)}`);
         }
-      } catch {
+      } catch (err) {
+        console.warn(`[pipeline] Speaker-ID failed for ${speaker}:`, err);
         // speaker-id service unavailable or audio too short
       }
 
       // Hume: transcription + 48 emotion scores per utterance
       let utterances: Utterance[] = [];
       try {
-        utterances = await analyzeProsody(audio, `${speaker.label}.wav`);
-      } catch {
-        // Non-fatal
+        utterances = await analyzeProsody(audio, `${speaker}.wav`);
+      } catch (err) {
+        console.warn(`[pipeline] Hume analysis failed for ${speaker}:`, err);
+        // Non-fatal - we still have the transcript from AssemblyAI
+        // Convert AssemblyAI utterances to our format (without emotions)
+        utterances = transcript.utterances
+          .filter((u) => u.speaker === speaker)
+          .map((u) => ({
+            text: u.text,
+            start: u.start / 1000, // Convert ms to seconds
+            end: u.end / 1000,
+            emotions: [],
+          }));
       }
 
-      return { similarity, utterances };
+      return { speaker, similarity, utterances };
     })
   );
 
-  // Label speakers: highest similarity above threshold gets "You", others get Speaker A/B/C
+  // Step 4: Label speakers - highest similarity above threshold gets "You", others get Speaker A/B/C
   const bestIdx = userEmbedding
-    ? results.reduce((best, s, i) => (s.similarity > results[best].similarity ? i : best), 0)
+    ? results.reduce(
+        (best, s, i) => (s.similarity > results[best].similarity ? i : best),
+        0
+      )
     : -1;
-  const bestIsUser = bestIdx >= 0 && results[bestIdx].similarity >= SPEAKER_MATCH_THRESHOLD;
+  const bestIsUser =
+    bestIdx >= 0 && results[bestIdx].similarity >= SPEAKER_MATCH_THRESHOLD;
 
   const labeled: SpeakerAnalysis[] = results.map((s, i) => {
     const isUser = bestIsUser && i === bestIdx;
@@ -94,5 +117,6 @@ export async function processConversation(
     };
   });
 
+  console.log(`[pipeline] Complete: ${labeled.length} speakers processed`);
   return { speakers: labeled };
 }
