@@ -8,15 +8,15 @@
 /**
  * Fixed set of EQ dimensions for consistent charting over time.
  *
- * TODO: Validate against EQ literature (Goleman's model, Bar-On EQ-i, etc.)
- * Current set is roughly Goleman's five components.
+ * Modified Goleman with Bar-On correction: replaced 'motivation' (unobservable
+ * in conversation) with 'stress_management' (directly measurable via prosody).
  */
 export const EQ_DIMENSION_NAMES = [
   'self_awareness',
   'self_regulation',
   'empathy',
   'social_skills',
-  'motivation',
+  'stress_management',
 ] as const;
 
 export type EQDimensionName = typeof EQ_DIMENSION_NAMES[number];

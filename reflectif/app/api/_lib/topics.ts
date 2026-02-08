@@ -3,6 +3,7 @@ import { generateStructuredJson } from "./gemini";
 import { DbHandlers } from "@/lib/db/handlers";
 import type { TopicSuggestion } from "@/lib/types/chat";
 import type { ConversationAnalysisWithTranscripts } from "@/lib/db/dto";
+import { loadPrompt } from "@/lib/prompts";
 
 // --- Prompt builder ---
 
@@ -11,10 +12,8 @@ function buildTopicsPrompt(
 ): string {
   const lines: string[] = [
     "# Topic Suggestion Request\n",
-    "You are generating 3 personalized conversation topic suggestions for a Reflectif EQ coaching session.",
-    "Each topic must be grounded in the user's actual conversation history provided below.",
-    "Use your memory of this user to provide personalized suggestions.",
-    "Do NOT suggest generic topics — every suggestion must reference specific patterns, behaviors, or situations from the data.\n",
+    loadPrompt("topics"),
+    "",
   ];
 
   // Per-conversation data
@@ -54,19 +53,7 @@ function buildTopicsPrompt(
   }
   lines.push("");
 
-  // Instructions
-  lines.push(
-    "## Instructions\n",
-    "Based on ALL the data above plus your accumulated knowledge of this user, suggest exactly 3 conversation topics for an EQ coaching session.\n",
-    "Each topic must:",
-    "- Target a specific behavioral pattern or emotional skill observed in the conversations above",
-    "- Reference concrete evidence (specific patterns, phase moods, or conversation summaries)",
-    "- Be framed as an invitation to reflect, not a lecture\n",
-    "For each topic provide:",
-    "1. A short label (3-6 words) for display",
-    "2. A one-sentence description of why this topic matters for them right now, referencing specific conversation data",
-    "3. A detailed context paragraph that a coaching AI should use to guide the conversation — include the specific patterns, behaviors, triggers, phase moods, and conversation dates that are relevant to this topic",
-  );
+  // The topics.md prompt file already contains full instructions with good/bad examples.
 
   return lines.join("\n");
 }
@@ -84,17 +71,17 @@ const TOPICS_SCHEMA = {
           label: {
             type: "STRING",
             description:
-              "Short display text for the topic bubble (3-6 words), e.g. 'Evening anxiety patterns'",
+              "Personal prompt (3-6 words) using 'your' where natural. Good: 'Your pattern of withdrawing'. Bad: 'Conflict avoidance tendencies'. Displayed as a topic bubble on mobile.",
           },
           description: {
             type: "STRING",
             description:
-              "One sentence explaining why this topic is relevant, referencing specific conversation data",
+              "One sentence using 'you', referencing a specific conversation or pattern. Good: 'You went quiet in two recent conversations right after being challenged.' Bad: 'Analysis indicates recurring emotional withdrawal.'",
           },
           contextPrompt: {
             type: "STRING",
             description:
-              "Detailed context paragraph for the LLM when the user selects this topic. Must include specific patterns, behaviors, or triggers from the user's conversation history.",
+              "Context paragraph prepended to user's first message. Must: address user as 'you', frame for USER's growth, include specific evidence (patterns, dates, behaviors), end with coaching direction, instruct AI for 2-4 sentence responses.",
           },
         },
         required: ["label", "description", "contextPrompt"],
@@ -141,7 +128,13 @@ export async function generateTopics(
 
   // Stage 2: Gemini 2.5 Flash → structured JSON
   const extractionPrompt = `Extract exactly 3 conversation topic suggestions from the following markdown.
-Follow the schema exactly. Each topic must reference specific conversation data — no generic suggestions.
+Follow the schema exactly.
+
+USER-CENTRIC ADDRESSING: Labels use "your" where natural. Descriptions use "you." contextPrompt addresses user as "you" and frames for USER's growth.
+
+LENGTH CONSTRAINTS: label 3-6 words, description 1 sentence, contextPrompt 1 paragraph.
+
+FAITHFUL EXTRACTION: Each topic must reference specific conversation data — no generic suggestions. Preserve specific patterns, dates, and behavioral references.
 
 ---
 

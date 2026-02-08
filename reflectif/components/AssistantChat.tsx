@@ -26,10 +26,13 @@ export function AssistantChat({ context, topics, mode, initialInsight }: { conte
     // Show context-specific welcome message (conversation-scoped chat only)
     useEffect(() => {
         if (messages.length === 0 && context) {
+            const primaryShift = context.dynamics.length >= 2
+                ? `a shift from **${context.dynamics[0].mood}** to **${context.dynamics[context.dynamics.length - 1].mood}**`
+                : `a **${context.dynamics[0]?.mood ?? context.label}** dynamic`;
             setMessages([{
                 id: "welcome",
                 role: "assistant",
-                text: `During this conversation, it would be great to observe your **${context.label}** pattern. \n\nI noticed distinct phases of ${context.dynamics.map(d => d.phase).join(" and ")}. \n\nWhat do you think triggered the shift?`
+                text: `Your **${context.label}** conversation had ${primaryShift}. That kind of change usually means something important happened beneath the surface.\n\nWhat stood out to you most about how it went?`
             }]);
         }
     }, [context]);
