@@ -45,7 +45,10 @@ export function initSchema(db: Database.Database): void {
 
     CREATE TABLE IF NOT EXISTS chats (
       id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       conversation_analysis_id TEXT REFERENCES conversation_analyses(id) ON DELETE CASCADE,
+      thread_id TEXT NOT NULL,
+      assistant_id TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
 
@@ -59,6 +62,7 @@ export function initSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_conversation_analyses_user_id ON conversation_analyses(user_id);
     CREATE INDEX IF NOT EXISTS idx_conversation_phases_analysis_id ON conversation_phases(conversation_analysis_id);
+    CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
     CREATE INDEX IF NOT EXISTS idx_chats_conversation_analysis_id ON chats(conversation_analysis_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id ON chat_messages(chat_id);
   `);
@@ -70,5 +74,13 @@ export function initSchema(db: Database.Database): void {
   }
   if (!columns.some((c) => c.name === "backboard_assistant_id")) {
     db.exec(`ALTER TABLE users ADD COLUMN backboard_assistant_id TEXT`);
+  }
+
+  const chatColumns = db.pragma("table_info(chats)") as { name: string }[];
+  if (!chatColumns.some((c) => c.name === "user_id")) {
+    db.exec(`ALTER TABLE chats ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE`);
+    db.exec(`ALTER TABLE chats ADD COLUMN thread_id TEXT NOT NULL DEFAULT ''`);
+    db.exec(`ALTER TABLE chats ADD COLUMN assistant_id TEXT NOT NULL DEFAULT ''`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id)`);
   }
 }

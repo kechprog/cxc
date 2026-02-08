@@ -19,11 +19,11 @@ type AnalysisResult = {
   patterns: string[];
 };
 
-// --- Backboard assistant (cached per process) ---
+// --- Backboard assistant ---
 
 export const ANALYSIS_INSTRUCTIONS = `You are an expert conversation analyst for Reflectif, an emotional intelligence coaching app.
 
-You will receive a transcript of a real conversation between people, along with per-utterance emotion scores from prosody analysis. Your job is to produce a detailed markdown analysis.
+You will receive a transcript of a real conversation between people, along with per-utterance emotion scores from prosody analysis and a timestamp index with exact timings. Your job is to produce a detailed markdown analysis.
 
 Structure your response with these sections:
 
@@ -35,18 +35,43 @@ A single 1-2 word label capturing the dominant emotional tone (e.g. "Tense", "Wa
 Then pick exactly one emoji from this set that best represents the tone: ${CONVERSATION_EMOJIS.join(" ")}
 
 ## CONVERSATION PHASES
-Break the conversation into distinct phases based on semantic shifts — when the topic, energy, or dynamic meaningfully changed. For each phase provide:
+Break the conversation into distinct phases based on semantic shifts — when the topic, energy, or interpersonal dynamic meaningfully changed.
+
+CRITICAL RULES FOR PHASE BOUNDARIES:
+- Every phase startTime MUST equal the exact start timestamp (in seconds) of an actual utterance from the Utterance Timestamp Index provided.
+- Every phase endTime MUST equal the exact end timestamp (in seconds) of an actual utterance from the Utterance Timestamp Index provided.
+- Phases must cover the full conversation with no gaps or overlaps.
+- Do NOT round timestamps. Use the exact decimal values from the transcript.
+- Do NOT divide the conversation into equal-length buckets. Phase boundaries happen where the conversation ACTUALLY shifts.
+
+For each phase provide:
 - A human-readable label (e.g. "Disagreement about deadline")
-- Why this is a distinct phase (what shifted)
+- Why this is a distinct phase — what specifically shifted (topic? emotional tone? who's leading? conflict level?)
 - The emotional mood of this phase
 - Any actionable insight or observation specific to this phase (if applicable)
-- Start and end times in seconds from the conversation start
+- startTime and endTime as exact utterance timestamps in seconds (refer to the Utterance Timestamp Index)
 
-Do NOT use fixed time buckets. A 5-minute chat might have 2 phases, a 30-minute argument might have 8. Follow the actual conversation flow.
+A short chat might have 2 phases, a long argument might have 8. Follow the actual conversation flow.
 
 ## COMMUNICATION PATTERNS
-List 2-5 specific communication patterns you observe in THIS conversation. Be concrete and evidence-based, reference actual moments.
-Examples: "deflects with humor when challenged", "interrupts when anxious", "validates partner before disagreeing"
+Identify 2-5 behavioral communication patterns — recurring ways a speaker ACTS or REACTS during this conversation.
+
+Each pattern must describe:
+- A specific BEHAVIOR (what someone does — deflects, interrupts, over-explains, goes quiet, mirrors, validates, escalates, etc.)
+- In a specific CONTEXT or TRIGGER (when challenged, when anxious, after being criticized, when topic gets personal, etc.)
+
+Format: "[behavior] when/during/after [trigger or context]"
+
+Good examples:
+- "deflects with humor when challenged on specifics"
+- "validates partner's point before introducing disagreement"
+- "goes quiet and monosyllabic after being criticized"
+- "over-explains and repeats points when not feeling heard"
+
+BAD — these are topic labels, NOT behavioral patterns:
+- "Experiential Sharing" (discourse category, not a behavior)
+- "Practical Recommendation" (speech act type, not a pattern)
+- "Active Listening" (generic skill label, not a specific observed behavior)
 
 Be honest, specific, and non-judgmental. Reference actual utterances and emotional data as evidence.`;
 
@@ -68,15 +93,24 @@ async function getOrCreateUserAssistant(userId: string): Promise<string> {
 
 // --- Prompt builder ---
 
+type FlatUtterance = {
+  index: number;
+  speaker: string;
+  text: string;
+  start: number;
+  end: number;
+  topEmotions: string[];
+};
+
 export function buildAnalysisPrompt(
   speakers: SpeakerAnalysis[]
-): string {
+): { prompt: string; timestampIndex: string } {
   const lines: string[] = ["# Conversation Transcript with Emotion Data\n"];
 
-  // Build chronological transcript
-  const allUtterances = speakers
+  const allUtterances: FlatUtterance[] = speakers
     .flatMap((s) =>
       s.utterances.map((u) => ({
+        index: 0,
         speaker: s.displayName,
         text: u.text,
         start: u.start,
@@ -87,27 +121,44 @@ export function buildAnalysisPrompt(
           .map((e) => `${e.name}(${e.score.toFixed(2)})`),
       }))
     )
-    .sort((a, b) => a.start - b.start);
+    .sort((a, b) => a.start - b.start)
+    .map((u, i) => ({ ...u, index: i + 1 }));
 
   for (const u of allUtterances) {
     const ts = formatTimestamp(u.start);
     lines.push(
-      `**[${ts}] ${u.speaker}:** ${u.text}`,
+      `**[${ts} | t=${u.start.toFixed(1)}s] ${u.speaker}:** ${u.text}`,
       `  _Emotions: ${u.topEmotions.join(", ")}_\n`
     );
   }
 
+  // Metadata
   lines.push(
     "\n---",
     `Total speakers: ${speakers.length}`,
     `Speaker names: ${speakers.map((s) => s.displayName).join(", ")}`,
     `Total utterances: ${allUtterances.length}`,
     allUtterances.length > 0
-      ? `Time range: ${formatTimestamp(allUtterances[0].start)} - ${formatTimestamp(allUtterances[allUtterances.length - 1].end)}`
+      ? `Time range: ${allUtterances[0].start.toFixed(1)}s - ${allUtterances[allUtterances.length - 1].end.toFixed(1)}s`
       : ""
   );
 
-  return lines.join("\n");
+  // Timestamp index table
+  const indexLines: string[] = [
+    "\n## Utterance Timestamp Index",
+    "| # | Speaker | Start (s) | End (s) |",
+    "|---|---------|-----------|---------|",
+  ];
+  for (const u of allUtterances) {
+    indexLines.push(
+      `| ${u.index} | ${u.speaker} | ${u.start.toFixed(1)} | ${u.end.toFixed(1)} |`
+    );
+  }
+
+  const timestampIndex = indexLines.join("\n");
+  lines.push(timestampIndex);
+
+  return { prompt: lines.join("\n"), timestampIndex };
 }
 
 function formatTimestamp(seconds: number): string {
@@ -158,21 +209,24 @@ const ANALYSIS_SCHEMA = {
           },
           startTime: {
             type: "NUMBER",
-            description: "Seconds from conversation start",
+            description: "Exact start timestamp in seconds of the utterance where this phase begins. Must match a real utterance start time — not a rounded value.",
           },
           endTime: {
             type: "NUMBER",
-            description: "Seconds from conversation start",
+            description: "Exact end timestamp in seconds of the last utterance in this phase. Must match a real utterance end time — not a rounded value.",
           },
         },
         required: ["phase", "reason", "mood", "startTime", "endTime"],
       },
-      description: "LLM-segmented phases of the conversation based on semantic shifts",
+      description: "LLM-segmented phases of the conversation based on semantic shifts. Boundaries must use exact utterance timestamps.",
     },
     patterns: {
       type: "ARRAY",
-      items: { type: "STRING" },
-      description: "2-5 communication patterns observed in this conversation",
+      items: {
+        type: "STRING",
+        description: "A behavioral pattern in the format '[specific behavior] when/during/after [trigger or context]'. Must describe what someone DOES, not a topic or category label.",
+      },
+      description: "2-5 specific behavioral communication patterns. Each must describe a concrete behavior paired with its trigger/context (e.g. 'deflects with humor when challenged'). Do NOT use generic labels like 'Experiential Sharing'.",
     },
   },
   required: ["summary", "emoji", "label", "dynamics", "patterns"],
@@ -181,14 +235,24 @@ const ANALYSIS_SCHEMA = {
 // --- Structured extraction via Gemini ---
 
 async function extractStructuredAnalysis(
-  markdown: string
+  markdown: string,
+  timestampIndex: string
 ): Promise<AnalysisResult> {
   const prompt = `Extract structured conversation analysis from the following markdown analysis.
 Follow the schema exactly. For the emoji field, pick from: ${CONVERSATION_EMOJIS.join(" ")}
 
+IMPORTANT EXTRACTION RULES:
+- For phase startTime/endTime: use exact decimal values from the utterance timestamps. Do NOT round. If the markdown says "1:23" that is 83 seconds, not 80 or 100.
+- For patterns: preserve the full behavioral description. Do NOT shorten "deflects with humor when challenged on specifics" to "Humor-based Deflection".
+- If the markdown contains more detail than a schema field allows, prefer the most specific and concrete version.
+
 ---
 
-${markdown}`;
+${markdown}
+
+---
+
+${timestampIndex}`;
 
   const result = await generateStructuredJson<AnalysisResult>(
     prompt,
@@ -209,17 +273,17 @@ export async function analyzeConversation(
   userId: string,
   speakers: SpeakerAnalysis[]
 ): Promise<AnalysisResult> {
-  // Stage 1: Backboard (GPT-4o) → rich markdown analysis (per-user assistant)
+  // Stage 1: Backboard (Gemini 3.0 Pro) → rich markdown analysis (per-user assistant)
   const assistantId = await getOrCreateUserAssistant(userId);
   const threadId = await createThread(assistantId);
 
-  const prompt = buildAnalysisPrompt(speakers);
+  const { prompt, timestampIndex } = buildAnalysisPrompt(speakers);
   const { content: markdown } = await sendMessage(threadId, prompt);
 
   console.log("Backboard analysis complete, extracting structured data...");
 
-  // Stage 2: Gemini → structured JSON
-  const analysis = await extractStructuredAnalysis(markdown);
+  // Stage 2: Gemini (2.5 Flash) → structured JSON
+  const analysis = await extractStructuredAnalysis(markdown, timestampIndex);
 
   return analysis;
 }

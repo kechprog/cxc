@@ -39,7 +39,7 @@ export function seedDb(db: Database.Database): void {
 
   // 4. Create chats
   for (const chat of MOCK_CHATS) {
-    handlers.createChat(chat);
+    handlers.createChat(MOCK_USER_ID, "mock_thread", "mock_assistant", chat);
   }
 
   console.log("[seed] Database populated with mock data");
