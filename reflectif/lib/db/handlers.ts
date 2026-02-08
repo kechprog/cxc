@@ -10,6 +10,7 @@ import type {
   ChatMessage,
   ChatListItem,
 } from "@/lib/types";
+import type { UserProgress } from "@/lib/types/progress";
 import {
   type UserRow,
   type CoreUserFileRow,
@@ -358,5 +359,29 @@ export class DbHandlers {
       preview: r.preview ?? "",
       createdAt: r.created_at,
     }));
+  }
+
+  // ── User Progress Cache ──────────────────────────────────
+
+  getProgressCache(userId: string, inputHash: string): UserProgress | null {
+    const row = this.db
+      .prepare(
+        `SELECT progress_data FROM user_progress_cache WHERE user_id = ? AND input_hash = ?`
+      )
+      .get(userId, inputHash) as { progress_data: string } | undefined;
+    return row ? JSON.parse(row.progress_data) : null;
+  }
+
+  setProgressCache(userId: string, inputHash: string, progress: UserProgress): void {
+    this.db
+      .prepare(
+        `INSERT INTO user_progress_cache (user_id, input_hash, progress_data, created_at)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET
+           input_hash = excluded.input_hash,
+           progress_data = excluded.progress_data,
+           created_at = excluded.created_at`
+      )
+      .run(userId, inputHash, JSON.stringify(progress), new Date().toISOString());
   }
 }

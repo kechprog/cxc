@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { createThread, sendMessage } from "@/lib/backboard";
 import { generateStructuredJson } from "./gemini";
 import { DbHandlers } from "@/lib/db/handlers";
@@ -5,6 +6,28 @@ import type { UserProgress } from "@/lib/types/progress";
 import { EQ_DIMENSION_NAMES } from "@/lib/types/progress";
 import type { CoreUserFile } from "@/lib/types/user";
 import type { ConversationAnalysisWithTranscripts } from "@/lib/db/dto";
+
+// --- Cache helpers ---
+
+function computeInputHash(
+  analyses: ConversationAnalysisWithTranscripts[],
+  coreUserFile: CoreUserFile | null
+): string {
+  // Create a deterministic representation of the input data
+  const analysisFingerprints = analyses.map((a) => ({
+    id: a.id,
+    analyzedAt: a.analyzedAt,
+    summary: a.summary,
+    patterns: a.patterns,
+  }));
+
+  const payload = JSON.stringify({
+    analyses: analysisFingerprints,
+    coreUserFile,
+  });
+
+  return createHash("sha256").update(payload).digest("hex").slice(0, 16);
+}
 
 // --- Prompt builder ---
 
@@ -239,6 +262,14 @@ export async function generateProgress(
     };
   }
 
+  // Check cache before calling LLM
+  const inputHash = computeInputHash(analyses, coreUserFile);
+  const cached = db.getProgressCache(userId, inputHash);
+  if (cached) {
+    console.log("[progress] Cache hit, returning cached progress");
+    return cached;
+  }
+
   const user = db.getUser(userId);
   if (!user?.backboardAssistantId) {
     throw new Error("User has no assistant configured");
@@ -258,6 +289,10 @@ export async function generateProgress(
 
   // Stage 2: Gemini 2.5 Flash -> structured JSON
   const progress = await extractStructuredProgress(markdown);
+
+  // Cache the result
+  db.setProgressCache(userId, inputHash, progress);
+  console.log("[progress] Cached new progress result");
 
   return progress;
 }

@@ -1,7 +1,7 @@
 import type { CoreUserFile } from "@/lib/types/user";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-3-flash-preview";
 
 function getApiKey(): string {
   const key = process.env.GEMINI_API_KEY;

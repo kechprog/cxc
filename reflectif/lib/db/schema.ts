@@ -60,6 +60,13 @@ export function initSchema(db: Database.Database): void {
       created_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS user_progress_cache (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      input_hash TEXT NOT NULL,
+      progress_data TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_conversation_analyses_user_id ON conversation_analyses(user_id);
     CREATE INDEX IF NOT EXISTS idx_conversation_phases_analysis_id ON conversation_phases(conversation_analysis_id);
     CREATE INDEX IF NOT EXISTS idx_chats_conversation_analysis_id ON chats(conversation_analysis_id);
