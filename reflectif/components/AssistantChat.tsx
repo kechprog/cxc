@@ -16,7 +16,6 @@ interface Message {
 export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [chatId, setChatId] = useState<string | null>(null);
-    const [seeded, setSeeded] = useState(false);
     const [inputValue, setInputValue] = useState("");
     const [isRecording, setIsRecording] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
@@ -47,28 +46,6 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
     useEffect(() => {
         scrollToBottom();
     }, [messages, isThinking]);
-
-    const seedContext = async (cId: string) => {
-        if (!context || seeded) return;
-        setSeeded(true);
-
-        const seedContent = [
-            `Conversation Analysis for "${context.label}":`,
-            `Summary: ${context.summary}`,
-            `Patterns observed: ${context.patterns.join(", ")}`,
-            `Conversation phases: ${context.dynamics.map(d => `${d.phase} (${d.mood}): ${d.reason}`).join("; ")}`,
-        ].join("\n");
-
-        try {
-            await fetch("/api/chat/seed", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ chatId: cId, content: seedContent }),
-            });
-        } catch (err) {
-            console.error("Failed to seed context:", err);
-        }
-    };
 
     const sendUserMessage = async (text: string) => {
         if (!text.trim() || isThinking) return;
@@ -102,8 +79,6 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
             // Persist chatId for subsequent messages
             if (data.chatId && !chatId) {
                 setChatId(data.chatId);
-                // Seed context on first interaction if available
-                seedContext(data.chatId);
             }
 
             const aiMsg: Message = {

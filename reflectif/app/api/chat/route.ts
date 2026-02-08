@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createAssistant, createThread, sendMessage } from "@/lib/backboard";
+import { createThread, sendMessage } from "@/lib/backboard";
 import { DbHandlers } from "@/lib/db/handlers";
 import { auth0 } from "@/lib/auth0";
 import { randomUUID } from "crypto";
@@ -39,7 +39,15 @@ export async function POST(req: NextRequest) {
       threadId = info.threadId;
       assistantId = info.assistantId;
     } else {
-      // New chat — create assistant + thread, persist in DB
+      // New chat — use user's existing Backboard assistant, create thread, seed context
+      const user = db.getUser(userId);
+      if (!user?.backboardAssistantId) {
+        return NextResponse.json(
+          { error: "User has no assistant configured" },
+          { status: 400 },
+        );
+      }
+
       if (conversationAnalysisId) {
         const ownerId = db.getConversationAnalysisOwnerId(conversationAnalysisId);
         if (!ownerId || ownerId !== userId) {
@@ -47,7 +55,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      assistantId = await createAssistant("Reflectif Assistant");
+      assistantId = user.backboardAssistantId;
       threadId = await createThread(assistantId);
       cId = randomUUID();
       db.createChat(userId, threadId, assistantId, {
@@ -55,11 +63,29 @@ export async function POST(req: NextRequest) {
         conversationAnalysisId: conversationAnalysisId ?? null,
         createdAt: new Date().toISOString(),
       });
+
+    }
+
+    // Build the message to send to the LLM
+    let llmMessage = message;
+
+    // On first message of a new chat with conversation context, prepend it inline
+    if (!chatId && conversationAnalysisId) {
+      const analysis = db.getConversationAnalysis(conversationAnalysisId);
+      if (analysis) {
+        const context = [
+          `[Context: Conversation Analysis for "${analysis.label}"]`,
+          `Summary: ${analysis.summary}`,
+          `Patterns observed: ${analysis.patterns.join("; ")}`,
+          `Conversation phases: ${analysis.dynamics.map(d => `${d.phase} (${d.mood}): ${d.reason}`).join("; ")}`,
+        ].join("\n");
+        llmMessage = `${context}\n\n---\n\n${message}`;
+      }
     }
 
     const now = new Date().toISOString();
 
-    // Persist user message
+    // Persist user message (original, without context prefix)
     db.addChatMessage(cId, {
       id: randomUUID(),
       role: "user",
@@ -67,7 +93,7 @@ export async function POST(req: NextRequest) {
       createdAt: now,
     });
 
-    const result = await sendMessage(threadId, message, true);
+    const result = await sendMessage(threadId, llmMessage, true);
 
     // Persist assistant response
     db.addChatMessage(cId, {

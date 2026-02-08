@@ -28,10 +28,10 @@ You will receive a transcript of a real conversation between people, along with 
 Structure your response with these sections:
 
 ## SUMMARY
-One paragraph overview of the entire conversation — the emotional arc, key themes, interpersonal dynamics, and overall trajectory.
+One paragraph overview of the entire conversation — the emotional arc, key themes, interpersonal dynamics, and overall trajectory. Focus on what happened emotionally and interpersonally, not just the topic. Write it as a reflection for the user, not a third-person report (avoid "This conversation between Speaker A and Speaker B...").
 
 ## OVERALL TONE
-A single 1-2 word label capturing the dominant emotional tone (e.g. "Tense", "Warm", "Draining", "Playful", "Guarded").
+A single 1-2 word label capturing the dominant emotional tone (e.g. "Tense", "Warm", "Draining", "Playful", "Guarded"). This should describe the EMOTIONAL quality, not the topic or purpose of the conversation. "Practical Advice" is a topic label — prefer emotional descriptors like "Supportive", "Curious", "Engaged".
 Then pick exactly one emoji from this set that best represents the tone: ${CONVERSATION_EMOJIS.join(" ")}
 
 ## CONVERSATION PHASES
@@ -48,7 +48,7 @@ For each phase provide:
 - A human-readable label (e.g. "Disagreement about deadline")
 - Why this is a distinct phase — what specifically shifted (topic? emotional tone? who's leading? conflict level?)
 - The emotional mood of this phase
-- Any actionable insight or observation specific to this phase (if applicable)
+- An optional insight or observation specific to this phase. This is NOT mandatory — only include one if there is a genuinely useful observation. Do not force advice or recommendations where there is nothing notable.
 - startTime and endTime as exact utterance timestamps in seconds (refer to the Utterance Timestamp Index)
 
 A short chat might have 2 phases, a long argument might have 8. Follow the actual conversation flow.
