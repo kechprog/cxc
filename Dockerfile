@@ -23,6 +23,7 @@ RUN apt-get update && \
 WORKDIR /app
 
 # ── Speaker-ID service ──
+RUN pip install --no-cache-dir torch==2.4.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cpu
 COPY services/speaker-id/requirements.txt /app/speaker-id/
 RUN pip install --no-cache-dir -r /app/speaker-id/requirements.txt
 
