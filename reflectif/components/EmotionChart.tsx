@@ -46,14 +46,48 @@ export function EmotionChart({ data = [], className }: { data?: any[], className
     // Adapter: Handle arch_v2 structure if needed
     // If data comes in as { timestamp, scores: {} }, flatten it for Recharts
     const chartData = data.map((point: any) => {
+        const ts = typeof point.timestamp === "number"
+            ? `${Math.floor(point.timestamp / 60).toString().padStart(2, "0")}:${Math.floor(point.timestamp % 60).toString().padStart(2, "0")}`
+            : point.time ?? "";
+
         if (point.scores) {
-            return {
-                time: new Date(point.timestamp * 1000).toISOString().substr(14, 5), // Generic formatted time helper
-                ...point.scores
-            };
+            // Mock data format: { timestamp, scores: { Joy: 0.3, ... } }
+            return { time: ts, ...point.scores };
+        }
+        if (point.emotions && Array.isArray(point.emotions)) {
+            // Pipeline format: { timestamp, speaker, emotions: [{ name, score }] }
+            const flat: Record<string, number | string> = { time: ts };
+            for (const e of point.emotions) {
+                flat[e.name] = e.score;
+            }
+            return flat;
         }
         return point;
     });
+
+    // Find top emotions by average score across all data points
+    const MAX_EMOTIONS = 6;
+    const emotionKeys = chartData.length > 0
+        ? Object.keys(chartData[0]).filter(k => k !== "time")
+        : [];
+
+    let topEmotions = emotionKeys;
+    if (emotionKeys.length > MAX_EMOTIONS) {
+        const avgScores: Record<string, number> = {};
+        for (const key of emotionKeys) {
+            let sum = 0;
+            let count = 0;
+            for (const point of chartData) {
+                const val = point[key];
+                if (typeof val === "number") { sum += val; count++; }
+            }
+            avgScores[key] = count > 0 ? sum / count : 0;
+        }
+        topEmotions = Object.entries(avgScores)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, MAX_EMOTIONS)
+            .map(([k]) => k);
+    }
 
     return (
         <div className={cn("w-full h-full", className)}>
@@ -78,26 +112,22 @@ export function EmotionChart({ data = [], className }: { data?: any[], className
                         tickLine={false}
                         axisLine={false}
                         width={40}
-                        domain={[0, 1]} // Ensure it stays within 0-100%
+                        domain={[0, 1]}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
 
-                    {/* Dynamic Lines based on data keys (handling Hume.ai's large taxonomy) */}
-                    {chartData.length > 0 && Object.keys(chartData[0])
-                        .filter(key => key !== 'time')
-                        .map((emotion, index) => (
-                            <Line
-                                key={emotion}
-                                type="monotone"
-                                dataKey={emotion}
-                                // Fallback color generation if not in preset
-                                stroke={EMOTION_COLORS[emotion] || `hsl(${(index * 137) % 360}, 70%, 60%)`}
-                                strokeWidth={2}
-                                dot={false}
-                                activeDot={{ r: 6, fill: "#fff", stroke: EMOTION_COLORS[emotion] || "#fff" }}
-                            />
-                        ))}
+                    {topEmotions.map((emotion, index) => (
+                        <Line
+                            key={emotion}
+                            type="monotone"
+                            dataKey={emotion}
+                            stroke={EMOTION_COLORS[emotion] || `hsl(${(index * 137) % 360}, 70%, 60%)`}
+                            strokeWidth={2}
+                            dot={false}
+                            activeDot={{ r: 6, fill: "#fff", stroke: EMOTION_COLORS[emotion] || "#fff" }}
+                        />
+                    ))}
                 </LineChart>
             </ResponsiveContainer>
         </div>
