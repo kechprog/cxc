@@ -27,11 +27,12 @@ export default async function RootLayout({
   const userId = session!.user.sub;
   const db = DbHandlers.getInstance();
   const conversations = db.listConversationAnalyses(userId);
+  const profileComplete = db.getCoreUserFile(userId) !== null;
 
   return (
     <html lang="en" className="dark">
       <body className={cn("min-h-screen bg-background font-sans antialiased text-foreground selection:bg-violet-500/30")}>
-        <ClientLayout conversations={conversations}>
+        <ClientLayout conversations={conversations} profileComplete={profileComplete}>
           {children}
         </ClientLayout>
       </body>

@@ -62,7 +62,6 @@ export function initSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_conversation_analyses_user_id ON conversation_analyses(user_id);
     CREATE INDEX IF NOT EXISTS idx_conversation_phases_analysis_id ON conversation_phases(conversation_analysis_id);
-    CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
     CREATE INDEX IF NOT EXISTS idx_chats_conversation_analysis_id ON chats(conversation_analysis_id);
     CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id ON chat_messages(chat_id);
   `);
@@ -81,6 +80,6 @@ export function initSchema(db: Database.Database): void {
     db.exec(`ALTER TABLE chats ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE CASCADE`);
     db.exec(`ALTER TABLE chats ADD COLUMN thread_id TEXT NOT NULL DEFAULT ''`);
     db.exec(`ALTER TABLE chats ADD COLUMN assistant_id TEXT NOT NULL DEFAULT ''`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id)`);
   }
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id)`);
 }

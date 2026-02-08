@@ -3,17 +3,30 @@
 import { useState, useCallback } from "react";
 import { FiMenu } from "react-icons/fi";
 import { Sidebar } from "@/components/Sidebar";
+import { ProfileSetupView } from "@/components/ProfileSetupView";
 import type { ConversationAnalysisListItem } from "@/lib/types";
 
 export function ClientLayout({
     conversations,
+    profileComplete,
     children,
 }: {
     conversations: ConversationAnalysisListItem[];
+    profileComplete: boolean;
     children: React.ReactNode;
 }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [setupDone, setSetupDone] = useState(profileComplete);
     const closeSidebar = useCallback(() => setSidebarOpen(false), []);
+
+    // Full-screen unskippable profile setup overlay
+    if (!setupDone) {
+        return (
+            <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+                <ProfileSetupView onComplete={() => setSetupDone(true)} />
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen">
@@ -43,6 +56,7 @@ export function ClientLayout({
                 conversations={conversations}
                 isOpen={sidebarOpen}
                 onClose={closeSidebar}
+                profileComplete={setupDone}
             />
 
             <main className="flex-1 lg:pl-64 pt-14 lg:pt-0 transition-all duration-300 relative z-0">
