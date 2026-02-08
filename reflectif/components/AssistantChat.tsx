@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { FiMic, FiSend, FiUser, FiCpu, FiStopCircle } from "react-icons/fi";
 import { cn } from "@/lib/utils";
+import { encodeWav } from "@/lib/audio/encode-wav";
 import type { ConversationAnalysis } from "@/lib/types/conversation";
 import type { TopicSuggestion } from "@/lib/types/chat";
 
@@ -19,9 +20,24 @@ export function AssistantChat({ context, topics, mode, initialInsight }: { conte
     const [chatId, setChatId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
     const [isRecording, setIsRecording] = useState(false);
+    const [isTranscribing, setIsTranscribing] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
     const [pendingContextPrompt, setPendingContextPrompt] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Audio recording refs
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const chunksRef = useRef<Blob[]>([]);
+    const streamRef = useRef<MediaStream | null>(null);
+
+    // Cleanup media resources on unmount
+    useEffect(() => {
+        return () => {
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach((t) => t.stop());
+            }
+        };
+    }, []);
 
     // Show context-specific welcome message (conversation-scoped chat only)
     useEffect(() => {
@@ -126,11 +142,163 @@ export function AssistantChat({ context, topics, mode, initialInsight }: { conte
         }
     };
 
-    const toggleRecording = () => {
-        if (isRecording) {
-            setIsRecording(false);
-        } else {
+    const startRecording = useCallback(async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            streamRef.current = stream;
+
+            const mediaRecorder = new MediaRecorder(stream);
+            mediaRecorderRef.current = mediaRecorder;
+            chunksRef.current = [];
+
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) chunksRef.current.push(e.data);
+            };
+
+            mediaRecorder.start();
             setIsRecording(true);
+        } catch (err) {
+            console.error("Failed to start recording:", err);
+            const errorMsg: Message = {
+                id: Date.now().toString(),
+                role: "assistant",
+                text: "Could not access your microphone. Please check browser permissions and try again.",
+            };
+            setMessages(prev => [...prev, errorMsg]);
+        }
+    }, []);
+
+    const stopAndTranscribe = useCallback((): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const mediaRecorder = mediaRecorderRef.current;
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                reject(new Error("No active recording"));
+                return;
+            }
+
+            mediaRecorder.onstop = async () => {
+                if (streamRef.current) {
+                    streamRef.current.getTracks().forEach((t) => t.stop());
+                    streamRef.current = null;
+                }
+
+                try {
+                    const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
+                    const audioCtx = new AudioContext();
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    const wavBuffer = encodeWav(audioBuffer);
+                    const wavBlob = new Blob([wavBuffer], { type: "audio/wav" });
+                    await audioCtx.close();
+                    resolve(wavBlob);
+                } catch (err) {
+                    reject(err);
+                }
+            };
+
+            mediaRecorder.stop();
+        });
+    }, []);
+
+    const toggleRecording = async () => {
+        if (isRecording) {
+            // Stop recording and transcribe
+            setIsRecording(false);
+            setIsTranscribing(true);
+
+            try {
+                const wavBlob = await stopAndTranscribe();
+
+                const formData = new FormData();
+                formData.append("audio", wavBlob, `chat_audio_${Date.now()}.wav`);
+
+                const res = await fetch("/api/transcribe", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || "Transcription failed");
+                }
+
+                if (!data.transcription || !data.transcription.trim()) {
+                    throw new Error("No speech detected. Please try again.");
+                }
+
+                setIsTranscribing(false);
+
+                // Send the transcribed text as a user message
+                const userMsg: Message = {
+                    id: Date.now().toString(),
+                    role: "user",
+                    text: data.transcription.trim(),
+                    isAudio: true,
+                };
+                setMessages(prev => [...prev, userMsg]);
+                setIsThinking(true);
+
+                // Now send to the chat API
+                try {
+                    const ctxPrompt = pendingContextPrompt;
+                    if (pendingContextPrompt) setPendingContextPrompt(null);
+
+                    const body: Record<string, string | undefined> = {
+                        message: data.transcription.trim(),
+                        chatId: chatId ?? undefined,
+                        conversationAnalysisId: context?.id,
+                    };
+                    if (ctxPrompt && !chatId) {
+                        body.contextPrompt = ctxPrompt;
+                    }
+
+                    const chatRes = await fetch("/api/chat", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(body),
+                    });
+
+                    const chatData = await chatRes.json();
+
+                    if (!chatRes.ok) {
+                        throw new Error(chatData.error || "Chat request failed");
+                    }
+
+                    if (chatData.chatId && !chatId) {
+                        setChatId(chatData.chatId);
+                    }
+
+                    const aiMsg: Message = {
+                        id: (Date.now() + 1).toString(),
+                        role: "assistant",
+                        text: chatData.content,
+                    };
+                    setMessages(prev => [...prev, aiMsg]);
+                } catch (err) {
+                    console.error("Chat error:", err);
+                    const errorMsg: Message = {
+                        id: (Date.now() + 1).toString(),
+                        role: "assistant",
+                        text: "Sorry, I had trouble responding. Please try again.",
+                    };
+                    setMessages(prev => [...prev, errorMsg]);
+                } finally {
+                    setIsThinking(false);
+                }
+            } catch (err) {
+                console.error("Transcription error:", err);
+                setIsTranscribing(false);
+                const errorMsg: Message = {
+                    id: Date.now().toString(),
+                    role: "assistant",
+                    text: err instanceof Error ? err.message : "Failed to transcribe audio. Please try again.",
+                };
+                setMessages(prev => [...prev, errorMsg]);
+            }
+        } else {
+            // Start recording
+            await startRecording();
         }
     };
 
@@ -232,15 +400,21 @@ export function AssistantChat({ context, topics, mode, initialInsight }: { conte
                     {/* Mic Button */}
                     <button
                         onClick={toggleRecording}
+                        disabled={isTranscribing || isThinking}
                         className={cn(
                             "relative group flex-shrink-0 w-11 h-11 lg:w-14 lg:h-14 rounded-full flex items-center justify-center transition-all duration-300 outline-none",
                             isRecording
                                 ? "bg-red-500/20 text-red-500 border border-red-500/50"
-                                : "bg-white/10 text-white hover:bg-violet-500/20 hover:text-violet-300 hover:border-violet-500/50 border border-white/10"
+                                : isTranscribing
+                                    ? "bg-violet-500/20 text-violet-400 border border-violet-500/50 opacity-70"
+                                    : "bg-white/10 text-white hover:bg-violet-500/20 hover:text-violet-300 hover:border-violet-500/50 border border-white/10 disabled:opacity-50"
                         )}
                     >
                         {isRecording && (
                             <span className="absolute inset-0 rounded-full border border-red-500/30 animate-ping" />
+                        )}
+                        {isTranscribing && (
+                            <span className="absolute inset-0 rounded-full border border-violet-500/30 animate-ping" />
                         )}
                         {isRecording ? <FiStopCircle size={24} /> : <FiMic size={24} />}
                     </button>
@@ -252,13 +426,13 @@ export function AssistantChat({ context, topics, mode, initialInsight }: { conte
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            disabled={isRecording || isThinking}
-                            placeholder={isRecording ? "Listening..." : "Type a message..."}
+                            disabled={isRecording || isTranscribing || isThinking}
+                            placeholder={isRecording ? "Listening..." : isTranscribing ? "Transcribing..." : "Type a message..."}
                             className="w-full bg-white/5 border border-white/10 rounded-full px-4 py-3 lg:px-5 lg:py-4 focus:outline-none focus:border-violet-500/50 focus:bg-white/10 transition-all text-sm text-white placeholder:text-zinc-600 disabled:opacity-50"
                         />
                         <button
                             onClick={() => sendUserMessage(inputValue)}
-                            disabled={!inputValue.trim() || isThinking}
+                            disabled={!inputValue.trim() || isThinking || isTranscribing}
                             className="absolute right-2 top-2 p-2 text-zinc-500 hover:text-violet-400 transition-colors disabled:opacity-30 disabled:hover:text-zinc-500"
                         >
                             <FiSend size={18} />
@@ -275,7 +449,16 @@ export function AssistantChat({ context, topics, mode, initialInsight }: { conte
                         Recording...
                     </motion.div>
                 )}
-                {!isRecording && (
+                {isTranscribing && !isRecording && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-center mt-3 text-xs text-violet-400 font-mono tracking-widest uppercase animate-pulse"
+                    >
+                        Transcribing...
+                    </motion.div>
+                )}
+                {!isRecording && !isTranscribing && (
                     <div className="text-center mt-3 text-xs text-zinc-600">
                         Tap microphone to speak or type a message
                     </div>
