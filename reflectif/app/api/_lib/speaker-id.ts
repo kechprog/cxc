@@ -1,6 +1,6 @@
 // NOTE: Trimming silence from speaker audio before match/enroll improves scores
 // (0.57 → 0.66 in testing). Worth adding if score accuracy becomes an issue.
-const SPEAKER_ID_URL = process.env.SPEAKER_ID_URL ?? "http://localhost:8100";
+const SPEAKER_ID_URL = (process.env.SPEAKER_ID_URL ?? "http://localhost:8100").replace(/\/+$/, "");
 
 export async function matchSpeaker(
   audioBuffer: Buffer
