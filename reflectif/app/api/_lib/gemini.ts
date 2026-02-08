@@ -7,34 +7,48 @@ function getApiKey(): string {
   return key;
 }
 
+const MAX_RETRIES = 3;
+const RETRY_BASE_MS = 2000;
+
 export async function generateStructuredJson<T>(
   prompt: string,
   schema: Record<string, unknown>,
   model = DEFAULT_MODEL
 ): Promise<T> {
-  const res = await fetch(
-    `${API_BASE}/${model}:generateContent?key=${getApiKey()}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          responseSchema: schema,
-        },
-      }),
-    }
-  );
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(
+      `${API_BASE}/${model}:generateContent?key=${getApiKey()}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: schema,
+          },
+        }),
+      }
+    );
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Gemini request failed (${res.status}): ${body}`);
+    if (res.status === 503 && attempt < MAX_RETRIES) {
+      const delay = RETRY_BASE_MS * 2 ** attempt;
+      console.warn(`[Gemini] 503 model overloaded, retrying in ${delay}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`Gemini request failed (${res.status}): ${body}`);
+    }
+
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error("No text in Gemini response");
+
+    return JSON.parse(text) as T;
   }
 
-  const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("No text in Gemini response");
-
-  return JSON.parse(text) as T;
+  throw new Error("Gemini request failed: max retries exceeded (503)");
 }
