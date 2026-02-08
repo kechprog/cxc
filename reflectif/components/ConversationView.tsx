@@ -28,7 +28,7 @@ export function ConversationView({ conversation, transcript }: { conversation: C
                     <div className="p-3 lg:p-4 border-b border-white/5 bg-white/5 backdrop-blur-xl flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <span className="text-sm font-medium text-white">AI Therapist</span>
+                            <span className="text-sm font-medium text-white">EQ Coach</span>
                         </div>
                         <button
                             onClick={() => setViewMode("dashboard")}

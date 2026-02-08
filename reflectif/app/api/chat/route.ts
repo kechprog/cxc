@@ -3,6 +3,7 @@ import { createThread, sendMessage } from "@/lib/backboard";
 import { DbHandlers } from "@/lib/db/handlers";
 import { auth0 } from "@/lib/auth0";
 import { randomUUID } from "crypto";
+import { loadPrompt } from "@/lib/prompts";
 
 export async function POST(req: NextRequest) {
   try {
@@ -71,17 +72,17 @@ export async function POST(req: NextRequest) {
 
     // On first message of a new chat, prepend context inline
     if (!chatId && contextPrompt && typeof contextPrompt === "string") {
-      llmMessage = `${contextPrompt}\n\n---\n\n${message}`;
+      llmMessage = `[CHAT MODE — EQ Coaching Conversation]\n\n${contextPrompt}\n\n---\n\nUser message: ${message}`;
     } else if (!chatId && conversationAnalysisId) {
       const analysis = db.getConversationAnalysis(conversationAnalysisId);
       if (analysis) {
-        const context = [
-          `[Context: Conversation Analysis for "${analysis.label}"]`,
-          `Summary: ${analysis.summary}`,
-          `Patterns observed: ${analysis.patterns.join("; ")}`,
-          `Conversation phases: ${analysis.dynamics.map(d => `${d.phase} (${d.mood}): ${d.reason}`).join("; ")}`,
-        ].join("\n");
-        llmMessage = `${context}\n\n---\n\n${message}`;
+        const template = loadPrompt("chat-context");
+        const context = template
+          .replace("{{LABEL}}", analysis.label)
+          .replace("{{SUMMARY}}", analysis.summary)
+          .replace("{{PATTERNS}}", analysis.patterns.join("; "))
+          .replace("{{PHASES}}", analysis.dynamics.map(d => `${d.phase} (${d.mood}): ${d.reason}`).join("; "));
+        llmMessage = `${context}\n\n---\n\nUser message: ${message}`;
       }
     }
 

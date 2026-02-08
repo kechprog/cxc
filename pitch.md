@@ -20,9 +20,9 @@ Record a conversation. Get back an emotional breakdown with insights you'd never
 - Communication patterns you're exhibiting ("deflects with humor when challenged")
 
 **What you get over time:**
-- EQ progress tracking across research-backed dimensions (self-awareness, self-regulation, empathy, social skills, motivation)
+- EQ progress tracking across research-backed dimensions (self-awareness, self-regulation, empathy, social skills, stress management)
 - Concrete evidence of what's improving and what still needs work
-- An AI therapist you can chat with anytime — it knows your history, your patterns, and your goals
+- An EQ coach you can chat with anytime — it knows your history, your patterns, and your goals
 
 **What makes it different:**
 - Analyzes your *voice*, not your words — your tone reveals what your language hides
@@ -42,7 +42,7 @@ The post-conversation summary flags this and suggests you check in with them. Th
 1. **Onboarding**: A brief AI-guided conversational interview (2-3 min) to understand your background, goals, and relationships. This also captures your voice for speaker identification in future recordings.
 2. **Record**: Enable recording for a conversation (phone call, in-person, meeting).
 3. **Analyze**: After the conversation, see the emotional breakdown — phases, insights, patterns.
-4. **Chat**: Talk to the AI therapist anytime. Discuss a specific insight, explore a pattern, or just check in. It knows your history.
+4. **Chat**: Talk to the EQ coach anytime. Discuss a specific insight, explore a pattern, or just check in. It knows your history.
 5. **Grow**: Over time, track your EQ progress. See concrete evidence of behavioral change.
 
 ## Privacy Model
@@ -78,3 +78,8 @@ This is the "wow" moment. Build the entire demo around making this single moment
 | Technical Complexity | GPU-accelerated voice identification + AudioPod speaker splitting + Hume.ai 48-emotion analysis + LLM synthesis + RAG memory — not a 1-prompt project |
 | Real-World Application | Universal — anyone who talks to people can use this. Mental health, professional development, relationships |
 | "Wow" Factor | The moment the model catches an emotion your words hid is visceral and immediately relatable |
+
+## Notes
+
+### Crisis Safety Protocol (Future Feature)
+Add a boolean field (e.g. `crisis_flag`) to the conversation analysis or progress JSON response. When the LLM detects mentions of self-harm, abuse, severe persistent distress, or clinical symptoms, it sets this flag to `true`. The frontend then renders a dedicated crisis support UI (not inline in the analysis text) with resources like 988 Suicide & Crisis Lifeline and Crisis Text Line. This keeps the analysis output clean while handling safety at the UX layer.

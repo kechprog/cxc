@@ -155,7 +155,7 @@ export const MOCK_USER_PROGRESS: UserProgress = {
     { name: "self_regulation", score: 0.4, trend: "Struggling with stress" },
     { name: "empathy", score: 0.85, trend: "High baseline" },
     { name: "social_skills", score: 0.6, trend: "Stable" },
-    { name: "motivation", score: 0.65, trend: "Recovering" },
+    { name: "stress_management", score: 0.65, trend: "Recovering" },
   ],
   progress: [
     {

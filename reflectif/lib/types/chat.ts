@@ -1,10 +1,10 @@
 /**
- * Chat (AI Therapist) types for Reflectif
+ * Chat (EQ Coach) types for Reflectif
  *
  * Based on arch_v2.md and context_dump.md
  *
  * Each ConversationAnalysis has its own linked Chat.
- * The AI therapist has context of that specific conversation for discussion.
+ * The EQ coach has context of that specific conversation for discussion.
  * - Has access to RAG (core user file + conversation summaries)
  * - Can update core memory based on what user shares
  * - Stateful within session; across sessions relies on RAG + core memory

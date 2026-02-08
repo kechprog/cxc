@@ -5,6 +5,7 @@ import { DbHandlers } from "@/lib/db/handlers";
 import type { UserProgress } from "@/lib/types/progress";
 import { EQ_DIMENSION_NAMES } from "@/lib/types/progress";
 import type { ConversationAnalysisWithTranscripts } from "@/lib/db/dto";
+import { loadPrompt } from "@/lib/prompts";
 
 // --- Cache helpers ---
 
@@ -29,11 +30,8 @@ function buildProgressPrompt(
 ): string {
   const lines: string[] = [
     "# User Progress Analysis Request\n",
-    "You are generating a progress report for a Reflectif user based on their recent conversations.",
-    "Your goal is to assess their emotional intelligence growth, identify concrete improvements,",
-    "and highlight areas that still need work.\n",
-    "Use your memory of this user to enrich your analysis.",
-    "Do NOT fabricate evidence — only reference what is provided below.\n",
+    loadPrompt("progress"),
+    "",
   ];
 
   // Per-conversation data
@@ -87,19 +85,7 @@ function buildProgressPrompt(
   }
   lines.push("");
 
-  // Instructions
-  lines.push(
-    "## Instructions\n",
-    "Based on ALL the data above plus your accumulated knowledge of this user, produce a detailed analysis covering:\n",
-    `1. **EQ Dimensions**: Score each of these 5 dimensions from 0.0-1.0 based on evidence: ${EQ_DIMENSION_NAMES.join(", ")}.`,
-    "   Include a trend description for each (e.g., \"Improving since they started naming emotions\").\n",
-    "2. **Progress Points**: Identify 2-5 concrete improvements the user has made.",
-    "   Each must have specific evidence from the conversations provided (reference specific dates, summaries, or patterns).",
-    "   These should be behavioral changes, not just topics discussed.\n",
-    "3. **Improvement Areas**: Identify 2-4 areas that still need work.",
-    "   Each must have evidence AND an actionable suggestion. Focus on EQ skills, not life circumstances.\n",
-    "Be honest but encouraging. Ground everything in the actual conversation data provided."
-  );
+  // The progress.md prompt file already contains full instructions, rubric, and output structure.
 
   return lines.join("\n");
 }
@@ -117,21 +103,21 @@ const PROGRESS_SCHEMA = {
           name: {
             type: "STRING",
             enum: [...EQ_DIMENSION_NAMES],
-            description: "EQ dimension name",
+            description: "EQ dimension name.",
           },
           score: {
             type: "NUMBER",
-            description: "Score from 0.0 to 1.0 based on evidence in the lookback window",
+            description: "0.0-1.0 based on BEHAVIORAL evidence, not emotional valence. Feeling sad is NOT a low score. Recognizing and managing it IS a high score.",
           },
           trend: {
             type: "STRING",
-            description: "Freeform trend description, e.g. 'Improving steadily'",
+            description: "Trajectory description using 'you' (max 80 chars). E.g. 'Improving since you started naming emotions in conflict'. Displayed on a mobile progress card.",
           },
         },
         required: ["name", "score", "trend"],
       },
       description:
-        "Exactly 5 EQ dimension scores, one for each: self_awareness, self_regulation, empathy, social_skills, motivation",
+        "Exactly 5 EQ dimension scores, one for each: self_awareness, self_regulation, empathy, social_skills, stress_management",
     },
     progress: {
       type: "ARRAY",
@@ -140,12 +126,12 @@ const PROGRESS_SCHEMA = {
         properties: {
           observation: {
             type: "STRING",
-            description: "What improved, e.g. 'Started acknowledging partner\\'s perspective'",
+            description: "What improved, using 'you' (max 100 chars). E.g. 'You started acknowledging your partner's perspective before responding'. Must be a behavioral change, not a topic.",
           },
           evidence: {
             type: "ARRAY",
             items: { type: "STRING" },
-            description: "Specific references from past conversations as evidence",
+            description: "Specific references (max 60 chars each) in format: 'brief behavior — Mon DD'. E.g. 'asked how they felt before advising — Jan 28'",
           },
         },
         required: ["observation", "evidence"],
@@ -159,16 +145,16 @@ const PROGRESS_SCHEMA = {
         properties: {
           observation: {
             type: "STRING",
-            description: "What still needs work",
+            description: "What still needs work, using 'you' (max 100 chars).",
           },
           evidence: {
             type: "ARRAY",
             items: { type: "STRING" },
-            description: "Specific references from past conversations",
+            description: "Specific references (max 60 chars each) in same format as progress evidence.",
           },
           suggestion: {
             type: "STRING",
-            description: "Actionable recommendation for improvement",
+            description: "Concrete, actionable micro-exercise starting with a verb (max 120 chars). E.g. 'Try pausing for 3 seconds before responding when you feel defensive.' NOT vague advice like 'Work on being more empathetic.'",
           },
         },
         required: ["observation", "evidence", "suggestion"],
@@ -188,8 +174,13 @@ async function extractStructuredProgress(
 Follow the schema exactly. The eq array must have exactly 5 entries, one for each dimension:
 ${EQ_DIMENSION_NAMES.join(", ")}.
 
-Scores must be between 0.0 and 1.0. Evidence arrays must contain specific references
-to conversations, not generic statements.
+SCORING: Scores 0.0-1.0 based on BEHAVIORAL evidence. Feeling sad ≠ low score. Managing emotions well = high score.
+
+USER-CENTRIC ADDRESSING: All observations, trends, and suggestions must address the user as "you."
+
+LENGTH CONSTRAINTS: trend ≤ 80 chars, observation ≤ 100 chars, evidence ≤ 60 chars each ("behavior — Mon DD" format), suggestion ≤ 120 chars (verb-first).
+
+FAITHFUL EXTRACTION: Evidence must contain specific conversation references, not generic statements. Suggestions must be concrete micro-exercises, not vague advice.
 
 ---
 
@@ -251,7 +242,7 @@ export async function generateProgress(
     throw new Error("User has no assistant configured");
   }
 
-  // Stage 1: Backboard (Gemini 3.0 Pro) with memory:read
+  // Stage 1: Backboard (Gemini 3 Pro) with memory:read
   const threadId = await createThread(user.backboardAssistantId);
   const prompt = buildProgressPrompt(analyses);
   const { content: markdown } = await sendMessage(
@@ -263,7 +254,7 @@ export async function generateProgress(
 
   console.log("[progress] Backboard analysis complete, extracting structured data...");
 
-  // Stage 2: Gemini 2.5 Flash -> structured JSON
+  // Stage 2: Gemini 3 Flash → structured JSON
   const progress = await extractStructuredProgress(markdown);
 
   // Cache the result

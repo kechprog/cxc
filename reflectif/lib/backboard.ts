@@ -10,7 +10,7 @@ export async function createAssistant(
   name: string,
   instructions?: string,
   provider = "google",
-  model = "gemini-3.0-pro",
+  model = "gemini-3-pro",
 ): Promise<string> {
   const body: Record<string, unknown> = {
     name,
