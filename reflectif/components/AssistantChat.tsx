@@ -14,7 +14,7 @@ interface Message {
     isAudio?: boolean;
 }
 
-export function AssistantChat({ context, topics, mode }: { context?: ConversationAnalysis; topics?: TopicSuggestion[]; mode?: "conversation" | "global" }) {
+export function AssistantChat({ context, topics, mode, initialInsight }: { context?: ConversationAnalysis; topics?: TopicSuggestion[]; mode?: "conversation" | "global"; initialInsight?: string }) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [chatId, setChatId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
@@ -33,6 +33,15 @@ export function AssistantChat({ context, topics, mode }: { context?: Conversatio
             }]);
         }
     }, [context]);
+
+    // Auto-send initialInsight as the first user message
+    const initialInsightSent = useRef(false);
+    useEffect(() => {
+        if (initialInsight && !initialInsightSent.current && messages.length > 0) {
+            initialInsightSent.current = true;
+            sendUserMessage(initialInsight);
+        }
+    }, [initialInsight, messages.length]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
