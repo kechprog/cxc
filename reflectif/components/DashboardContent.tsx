@@ -5,7 +5,7 @@ import { TranscriptMessage } from "@/lib/types";
 import { EmotionChart } from "@/components/EmotionChart";
 import { FiActivity, FiCheckCircle, FiMessageCircle } from "react-icons/fi";
 
-export function DashboardContent({ conversation, showChatButton, onChatClick }: { conversation: ConversationAnalysis, transcript?: TranscriptMessage[], showChatButton?: boolean, onChatClick?: () => void }) {
+export function DashboardContent({ conversation, onChatClick }: { conversation: ConversationAnalysis, transcript?: TranscriptMessage[], onChatClick?: (insight?: string) => void }) {
     const insights = conversation.dynamics
         .filter((phase) => phase.insight)
         .map((phase) => phase.insight!);
@@ -53,7 +53,11 @@ export function DashboardContent({ conversation, showChatButton, onChatClick }: 
                             </h2>
                             <ul className="space-y-3">
                                 {insights.map((insight, i) => (
-                                    <li key={i} className="flex gap-3 items-start text-sm text-zinc-300">
+                                    <li
+                                        key={i}
+                                        onClick={() => onChatClick?.(insight)}
+                                        className="flex gap-3 items-start text-sm text-zinc-300 cursor-pointer hover:bg-white/5 -mx-2 px-2 py-2 rounded-lg transition-colors hover:text-white"
+                                    >
                                         <span className="text-amber-400 mt-0.5 flex-shrink-0">•</span>
                                         <span>{insight}</span>
                                     </li>
