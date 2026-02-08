@@ -1,48 +1,36 @@
-// NOTE: Trimming silence from speaker audio before match/enroll improves scores
-// (0.57 → 0.66 in testing). Worth adding if score accuracy becomes an issue.
 const SPEAKER_ID_URL = (process.env.SPEAKER_ID_URL ?? "http://localhost:8100").replace(/\/+$/, "");
 
-export async function matchSpeaker(
+export async function extractEmbedding(
   audioBuffer: Buffer
-): Promise<{ voiceId: string | null; score: number }> {
+): Promise<number[]> {
   const formData = new FormData();
   formData.append(
     "audio",
     new Blob([new Uint8Array(audioBuffer)]),
-    "speaker.wav"
+    "audio.wav"
   );
 
-  const res = await fetch(`${SPEAKER_ID_URL}/match`, {
+  const res = await fetch(`${SPEAKER_ID_URL}/embed`, {
     method: "POST",
     body: formData,
   });
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`speaker-id match failed (${res.status}): ${body}`);
+    throw new Error(`speaker-id embed failed (${res.status}): ${body}`);
   }
   const data = await res.json();
-  return {
-    voiceId: (data.voice_id as string) ?? null,
-    score: data.score as number,
-  };
+  return data.embedding as number[];
 }
 
-export async function enrollSpeaker(audioBuffer: Buffer): Promise<string> {
-  const formData = new FormData();
-  formData.append(
-    "audio",
-    new Blob([new Uint8Array(audioBuffer)]),
-    "enroll.wav"
-  );
-
-  const res = await fetch(`${SPEAKER_ID_URL}/enroll`, {
-    method: "POST",
-    body: formData,
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`speaker-id enroll failed (${res.status}): ${body}`);
+export function cosineSimilarity(a: number[], b: number[]): number {
+  let dot = 0;
+  let magA = 0;
+  let magB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    magA += a[i] * a[i];
+    magB += b[i] * b[i];
   }
-  const data = await res.json();
-  return data.voice_id as string;
+  const denom = Math.sqrt(magA) * Math.sqrt(magB);
+  return denom === 0 ? 0 : dot / denom;
 }

@@ -10,19 +10,6 @@ import { TranscriptMessage } from "@/lib/types/transcript";
 import { UserProgress } from "@/lib/types/progress";
 import { ChatListItem } from "@/lib/types/chat";
 
-export interface UserProfile {
-  id: string;
-  name: string;
-  voice_imprint_status: "pending" | "processed";
-  profile_data: {
-    goals: string[];
-    known_triggers: string[];
-    relationships: string[];
-    bio: string;
-    communication_style: string;
-  };
-}
-
 // --- Enums & Constants ---
 
 export const EMOTIONS = ["Joy", "Sadness", "Anger", "Fear", "Neutral"];
@@ -192,30 +179,6 @@ export const MOCK_USER_PROGRESS: UserProgress = {
       suggestion: "Practice the 'pause and breathe' technique before responding."
     }
   ]
-};
-
-// Helper for UI compatibility
-export const MOCK_CORE_USER_FILE = {
-  background: "Product Manager in high-growth tech startup. High stress environment.",
-  relationships: "Partner (Sarah) - Strained. Manager (David) - Demanding.",
-  goals: "Be less defensive in conflicts. Improve active listening.",
-  triggers: "Unsolicited advice. Interruptions.",
-  eqBaseline: "High empathy, low self-regulation under stress.",
-  patterns: "Direct but prone to shutting down under pressure.",
-  lifeContext: "Approaching quarterly review cycle."
-};
-
-export const MOCK_USER_PROFILE: UserProfile = {
-  id: "usr_123",
-  name: "Alex",
-  voice_imprint_status: "processed",
-  profile_data: {
-    goals: [MOCK_CORE_USER_FILE.goals],
-    known_triggers: [MOCK_CORE_USER_FILE.triggers],
-    relationships: [MOCK_CORE_USER_FILE.relationships],
-    bio: MOCK_CORE_USER_FILE.background,
-    communication_style: MOCK_CORE_USER_FILE.patterns
-  }
 };
 
 export const MOCK_CHATS: ChatListItem[] = [

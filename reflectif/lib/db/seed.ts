@@ -2,7 +2,6 @@ import type Database from "better-sqlite3";
 import {
   MOCK_CONVERSATIONS,
   MOCK_TRANSCRIPTS,
-  MOCK_CORE_USER_FILE,
   MOCK_CHATS,
 } from "@/lib/data";
 import type { User } from "@/lib/types";
@@ -22,16 +21,15 @@ export function seedDb(db: Database.Database): void {
   // 1. Create mock user
   const user: User = {
     id: MOCK_USER_ID,
-    voiceId: null,
+    voiceEmbedding: null,
     backboardAssistantId: null,
+    onboardingThreadId: null,
+    profileComplete: true,
     createdAt: new Date().toISOString(),
   };
   handlers.createUser(user);
 
-  // 2. Create core user file
-  handlers.upsertCoreUserFile(MOCK_USER_ID, MOCK_CORE_USER_FILE);
-
-  // 3. Create conversations with transcripts
+  // 2. Create conversations with transcripts
   for (const conv of MOCK_CONVERSATIONS) {
     const transcripts = MOCK_TRANSCRIPTS[conv.id] ?? [];
     handlers.createConversationAnalysis(MOCK_USER_ID, conv, transcripts);

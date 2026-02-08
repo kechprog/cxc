@@ -3,15 +3,16 @@ import {
   pollSpeakerJob,
   downloadSpeakerAudio,
 } from "@/app/api/_lib/audiopod";
-import { matchSpeaker, enrollSpeaker } from "@/app/api/_lib/speaker-id";
+import { extractEmbedding, cosineSimilarity } from "@/app/api/_lib/speaker-id";
 import { analyzeProsody } from "@/app/api/_lib/hume";
 
 export type { Utterance } from "@/app/api/_lib/hume";
 
 import type { Utterance } from "@/app/api/_lib/hume";
 
+const SPEAKER_MATCH_THRESHOLD = 0.25;
+
 export interface SpeakerAnalysis {
-  voiceId: string | null;
   isUser: boolean;
   displayName: string;
   utterances: Utterance[];
@@ -24,13 +25,13 @@ export interface ConversationAnalysis {
 /**
  * Full conversation processing pipeline:
  * 1. AudioPod — split speakers into separate audio tracks
- * 2. Speaker-ID service — match each speaker against known voices
+ * 2. Speaker-ID service — extract embedding, cosine similarity against user's stored embedding
  * 3. Hume — transcription + 48 emotion scores per utterance
  */
 export async function processConversation(
   audioBuffer: Buffer,
   filename: string,
-  userVoiceId?: string | null
+  userEmbedding?: number[] | null
 ): Promise<ConversationAnalysis> {
   // Step 1: Split speakers via AudioPod
   const { id: jobId } = await extractSpeakers(audioBuffer, filename);
@@ -49,16 +50,16 @@ export async function processConversation(
       try {
         audio = await downloadSpeakerAudio(speaker.download_url);
       } catch {
-        return { voiceId: null, utterances: [] as Utterance[] };
+        return { similarity: 0, utterances: [] as Utterance[] };
       }
 
-      // Match against known voices, auto-enroll if new
-      let voiceId: string | null = null;
+      // Extract embedding and compare against user's enrolled voice
+      let similarity = 0;
       try {
-        const m = await matchSpeaker(audio);
-        voiceId = m.voiceId;
-        if (!voiceId) {
-          voiceId = await enrollSpeaker(audio);
+        if (userEmbedding) {
+          const embedding = await extractEmbedding(audio);
+          similarity = cosineSimilarity(embedding, userEmbedding);
+          console.log(`Speaker ${speaker.label}: similarity=${similarity.toFixed(4)}`);
         }
       } catch {
         // speaker-id service unavailable or audio too short
@@ -72,15 +73,19 @@ export async function processConversation(
         // Non-fatal
       }
 
-      return { voiceId, utterances };
+      return { similarity, utterances };
     })
   );
 
-  // Label speakers: user gets "You", others get Speaker A/B/C
-  const labeled: SpeakerAnalysis[] = results.map((s) => {
-    const isUser = !!(userVoiceId && s.voiceId === userVoiceId);
+  // Label speakers: highest similarity above threshold gets "You", others get Speaker A/B/C
+  const bestIdx = userEmbedding
+    ? results.reduce((best, s, i) => (s.similarity > results[best].similarity ? i : best), 0)
+    : -1;
+  const bestIsUser = bestIdx >= 0 && results[bestIdx].similarity >= SPEAKER_MATCH_THRESHOLD;
+
+  const labeled: SpeakerAnalysis[] = results.map((s, i) => {
+    const isUser = bestIsUser && i === bestIdx;
     return {
-      voiceId: s.voiceId,
       isUser,
       displayName: isUser
         ? "You"

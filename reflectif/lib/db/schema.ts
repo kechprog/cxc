@@ -4,8 +4,10 @@ export function initSchema(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
-      voice_id TEXT,
+      voice_embedding TEXT,
       backboard_assistant_id TEXT,
+      onboarding_thread_id TEXT,
+      profile_complete INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
 
@@ -75,11 +77,20 @@ export function initSchema(db: Database.Database): void {
 
   // Migrations for existing databases
   const columns = db.pragma("table_info(users)") as { name: string }[];
-  if (!columns.some((c) => c.name === "voice_id")) {
-    db.exec(`ALTER TABLE users ADD COLUMN voice_id TEXT`);
+  if (!columns.some((c) => c.name === "voice_embedding")) {
+    // Migrate from voice_id to voice_embedding (drop old voice_id data — IDs are useless without the service DB)
+    db.exec(`ALTER TABLE users ADD COLUMN voice_embedding TEXT`);
   }
   if (!columns.some((c) => c.name === "backboard_assistant_id")) {
     db.exec(`ALTER TABLE users ADD COLUMN backboard_assistant_id TEXT`);
+  }
+  if (!columns.some((c) => c.name === "onboarding_thread_id")) {
+    db.exec(`ALTER TABLE users ADD COLUMN onboarding_thread_id TEXT`);
+  }
+  if (!columns.some((c) => c.name === "profile_complete")) {
+    db.exec(
+      `ALTER TABLE users ADD COLUMN profile_complete INTEGER NOT NULL DEFAULT 0`
+    );
   }
 
   const chatColumns = db.pragma("table_info(chats)") as { name: string }[];

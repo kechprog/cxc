@@ -1,6 +1,5 @@
 import type {
   User,
-  CoreUserFile,
   ConversationAnalysis,
   ConversationPhase,
   ConversationEmoji,
@@ -13,20 +12,11 @@ import type {
 
 export type UserRow = {
   id: string;
-  voice_id: string | null;
+  voice_embedding: string | null;
   backboard_assistant_id: string | null;
+  onboarding_thread_id: string | null;
+  profile_complete: number;
   created_at: string;
-};
-
-export type CoreUserFileRow = {
-  user_id: string;
-  background: string;
-  relationships: string;
-  goals: string;
-  triggers: string;
-  eq_baseline: string;
-  patterns: string;
-  life_context: string;
 };
 
 export type ConversationAnalysisRow = {
@@ -74,8 +64,10 @@ export type ChatMessageRow = {
 export function userFromRow(row: UserRow): User {
   return {
     id: row.id,
-    voiceId: row.voice_id,
+    voiceEmbedding: row.voice_embedding ? JSON.parse(row.voice_embedding) : null,
     backboardAssistantId: row.backboard_assistant_id,
+    onboardingThreadId: row.onboarding_thread_id,
+    profileComplete: row.profile_complete === 1,
     createdAt: row.created_at,
   };
 }
@@ -83,37 +75,11 @@ export function userFromRow(row: UserRow): User {
 export function userToRow(user: User): UserRow {
   return {
     id: user.id,
-    voice_id: user.voiceId,
+    voice_embedding: user.voiceEmbedding ? JSON.stringify(user.voiceEmbedding) : null,
     backboard_assistant_id: user.backboardAssistantId,
+    onboarding_thread_id: user.onboardingThreadId,
+    profile_complete: user.profileComplete ? 1 : 0,
     created_at: user.createdAt,
-  };
-}
-
-export function coreUserFileFromRow(row: CoreUserFileRow): CoreUserFile {
-  return {
-    background: row.background,
-    relationships: row.relationships,
-    goals: row.goals,
-    triggers: row.triggers,
-    eqBaseline: row.eq_baseline,
-    patterns: row.patterns,
-    lifeContext: row.life_context,
-  };
-}
-
-export function coreUserFileToRow(
-  userId: string,
-  file: CoreUserFile
-): CoreUserFileRow {
-  return {
-    user_id: userId,
-    background: file.background,
-    relationships: file.relationships,
-    goals: file.goals,
-    triggers: file.triggers,
-    eq_baseline: file.eqBaseline,
-    patterns: file.patterns,
-    life_context: file.lifeContext,
   };
 }
 
