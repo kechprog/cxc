@@ -36,6 +36,7 @@ export async function transcribeWithDiarization(
   const transcript = await client.transcripts.transcribe({
     audio: audioBuffer,
     speaker_labels: true,
+    speech_models: ["universal"],
   });
 
   if (transcript.status === "error") {
