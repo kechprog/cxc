@@ -9,11 +9,13 @@ function getApiKey(): string {
 export async function createAssistant(
   name: string,
   instructions?: string,
+  provider = "google",
+  model = "gemini-3.0-pro",
 ): Promise<string> {
   const body: Record<string, unknown> = {
     name,
-    llm_provider: "openai",
-    llm_model_name: "gpt-4o",
+    llm_provider: provider,
+    llm_model_name: model,
     tools: [],
   };
   if (instructions) body.instructions = instructions;

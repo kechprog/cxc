@@ -54,7 +54,10 @@ export type ConversationPhaseRow = {
 
 export type ChatRow = {
   id: string;
+  user_id: string;
   conversation_analysis_id: string;
+  thread_id: string;
+  assistant_id: string;
   created_at: string;
 };
 

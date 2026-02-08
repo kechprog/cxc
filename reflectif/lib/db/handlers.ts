@@ -240,12 +240,12 @@ export class DbHandlers {
 
   // ── Chats ─────────────────────────────────────────────
 
-  createChat(chat: Omit<Chat, "messages">): void {
+  createChat(userId: string, threadId: string, assistantId: string, chat: Omit<Chat, "messages">): void {
     this.db
       .prepare(
-        `INSERT INTO chats (id, conversation_analysis_id, created_at) VALUES (?, ?, ?)`
+        `INSERT INTO chats (id, user_id, conversation_analysis_id, thread_id, assistant_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .run(chat.id, chat.conversationAnalysisId, chat.createdAt);
+      .run(chat.id, userId, chat.conversationAnalysisId, threadId, assistantId, chat.createdAt);
   }
 
   getChat(id: string): Chat | null {
@@ -291,15 +291,30 @@ export class DbHandlers {
       .run(row.id, row.chat_id, row.role, row.content, row.created_at);
   }
 
-  listChats(): ChatListItem[] {
+  getChatThreadInfo(chatId: string): { userId: string; threadId: string; assistantId: string } | null {
+    const row = this.db
+      .prepare(`SELECT user_id, thread_id, assistant_id FROM chats WHERE id = ?`)
+      .get(chatId) as { user_id: string; thread_id: string; assistant_id: string } | undefined;
+    return row ? { userId: row.user_id, threadId: row.thread_id, assistantId: row.assistant_id } : null;
+  }
+
+  getConversationAnalysisOwnerId(id: string): string | null {
+    const row = this.db
+      .prepare(`SELECT user_id FROM conversation_analyses WHERE id = ?`)
+      .get(id) as { user_id: string } | undefined;
+    return row?.user_id ?? null;
+  }
+
+  listChats(userId: string): ChatListItem[] {
     const rows = this.db
       .prepare(
         `SELECT c.id, c.conversation_analysis_id, c.created_at,
                 (SELECT cm.content FROM chat_messages cm WHERE cm.chat_id = c.id ORDER BY cm.created_at LIMIT 1) as preview
          FROM chats c
+         WHERE c.user_id = ?
          ORDER BY c.created_at DESC`
       )
-      .all() as (ChatRow & { preview: string | null })[];
+      .all(userId) as (ChatRow & { preview: string | null })[];
 
     return rows.map((r) => ({
       id: r.id,

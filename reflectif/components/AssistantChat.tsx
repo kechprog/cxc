@@ -15,8 +15,6 @@ interface Message {
 
 export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
     const [messages, setMessages] = useState<Message[]>([]);
-    const [threadId, setThreadId] = useState<string | null>(null);
-    const [assistantId, setAssistantId] = useState<string | null>(null);
     const [chatId, setChatId] = useState<string | null>(null);
     const [seeded, setSeeded] = useState(false);
     const [inputValue, setInputValue] = useState("");
@@ -50,7 +48,7 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
         scrollToBottom();
     }, [messages, isThinking]);
 
-    const seedContext = async (tId: string) => {
+    const seedContext = async (cId: string) => {
         if (!context || seeded) return;
         setSeeded(true);
 
@@ -65,7 +63,7 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
             await fetch("/api/chat/seed", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ threadId: tId, content: seedContent }),
+                body: JSON.stringify({ chatId: cId, content: seedContent }),
             });
         } catch (err) {
             console.error("Failed to seed context:", err);
@@ -90,8 +88,6 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     message: text.trim(),
-                    threadId,
-                    assistantId,
                     chatId,
                     conversationAnalysisId: context?.id,
                 }),
@@ -103,17 +99,11 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
                 throw new Error(data.error || "Chat request failed");
             }
 
-            // Persist IDs for subsequent messages
-            if (data.threadId && !threadId) {
-                setThreadId(data.threadId);
-                // Seed context on first interaction if available
-                seedContext(data.threadId);
-            }
-            if (data.assistantId && !assistantId) {
-                setAssistantId(data.assistantId);
-            }
+            // Persist chatId for subsequent messages
             if (data.chatId && !chatId) {
                 setChatId(data.chatId);
+                // Seed context on first interaction if available
+                seedContext(data.chatId);
             }
 
             const aiMsg: Message = {
