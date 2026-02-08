@@ -16,8 +16,10 @@ export const auth0 = new Auth0Client({
       );
       db.createUser({
         id: userId,
-        voiceId: null,
+        voiceEmbedding: null,
         backboardAssistantId: assistantId,
+        onboardingThreadId: null,
+        profileComplete: false,
         createdAt: new Date().toISOString(),
       });
     }

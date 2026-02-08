@@ -30,7 +30,7 @@ export async function POST() {
   console.log(`[test-pipeline] Running pipeline for user ${userId}, file: dialog.wav`);
 
   try {
-    const pipelineResult = await processConversation(buffer, "dialog.wav", user.voiceId);
+    const pipelineResult = await processConversation(buffer, "dialog.wav", user.voiceEmbedding);
 
     const transcripts: TranscriptMessage[] = pipelineResult.speakers
       .flatMap((speaker: SpeakerAnalysis) =>

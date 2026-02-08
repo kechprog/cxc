@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     const pipelineResult = await processConversation(
       buffer,
       audioFile.name,
-      user.voiceId,
+      user.voiceEmbedding,
     );
 
     // Build transcript messages from speaker utterances, sorted by time

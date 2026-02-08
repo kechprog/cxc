@@ -1,5 +1,3 @@
-import type { CoreUserFile } from "@/lib/types/user";
-
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const DEFAULT_MODEL = "gemini-3-flash-preview";
 
@@ -151,123 +149,68 @@ Evaluate the attached audio.`,
   );
 }
 
-// ── Interview answer transcription + evaluation ──────────────────
+// ── Audio transcription ──────────────────────────────────────────
 
-type AnswerEvaluationResult = {
-  transcription: string;
-  isSatisfactory: boolean;
-  followUp: string | null;
-};
-
-const answerEvaluationSchema = {
+const transcriptionSchema = {
   type: "OBJECT",
   properties: {
     transcription: {
       type: "STRING",
       description: "Verbatim transcription of the user's spoken audio.",
     },
-    isSatisfactory: {
-      type: "BOOLEAN",
-      description:
-        "True if the answer is substantive — at least a few sentences with real, personal detail relevant to the question. One-word or evasive answers are not satisfactory.",
-    },
-    followUp: {
-      type: "STRING",
-      nullable: true,
-      description:
-        "If not satisfactory, a gentle follow-up probe to elicit a deeper response. Null if satisfactory.",
-    },
   },
-  required: ["transcription", "isSatisfactory", "followUp"],
+  required: ["transcription"],
 };
 
-export async function transcribeAndEvaluateAnswer(
-  audioBuffer: Buffer,
-  questionText: string,
-  previousAttempts: string[]
-): Promise<AnswerEvaluationResult> {
-  const attemptsCtx =
-    previousAttempts.length > 0
-      ? `\n\nPrevious attempts for this question:\n${previousAttempts.map((a, i) => `Attempt ${i + 1}: "${a}"`).join("\n")}`
-      : "";
-
-  return generateMultimodalJson<AnswerEvaluationResult>(
-    [
-      `You are an empathetic onboarding interviewer for Reflectif, an emotional-intelligence coaching app.
-
-The user was asked: "${questionText}"${attemptsCtx}
-
-Your job:
-1. Transcribe the attached audio verbatim.
-2. Decide if the answer is substantive — it should contain at least a couple of sentences of genuine, personal reflection. Answers like "nothing", "I don't know", or very short/evasive responses are NOT satisfactory.
-3. If not satisfactory, write a warm, encouraging follow-up probe that gently asks the user to share more. Reference what they said (if anything) and guide them toward a deeper answer.
-
-Evaluate the attached audio.`,
-    ],
+export async function transcribeAudio(
+  audioBuffer: Buffer
+): Promise<string> {
+  const result = await generateMultimodalJson<{ transcription: string }>(
+    ["Transcribe the following audio verbatim. Return only the transcription."],
     audioBuffer,
-    answerEvaluationSchema
+    transcriptionSchema
   );
+  return result.transcription;
 }
 
-// ── Build CoreUserFile from interview answers ────────────────────
+// ── Interview completion sentinel ────────────────────────────────
 
-const coreUserFileSchema = {
+const interviewCompleteSchema = {
   type: "OBJECT",
   properties: {
-    background: {
-      type: "STRING",
-      description: "Job, lifestyle, typical day — extracted from interview answers.",
-    },
-    relationships: {
-      type: "STRING",
-      description: "Key relationships and dynamics mentioned by the user.",
-    },
-    goals: {
-      type: "STRING",
-      description: "What the user wants to improve about themselves.",
-    },
-    triggers: {
-      type: "STRING",
-      description: "Known emotional triggers and sensitivities.",
-    },
-    eqBaseline: {
-      type: "STRING",
-      description: "EQ baseline assessment and growth areas.",
-    },
-    patterns: {
-      type: "STRING",
-      description: "Recurring communication/behavioral patterns the user described.",
-    },
-    lifeContext: {
-      type: "STRING",
-      description: "Important life events or current context.",
+    done: {
+      type: "BOOLEAN",
+      description:
+        "True if the onboarding interview has naturally concluded. False if it should continue.",
     },
   },
-  required: [
-    "background",
-    "relationships",
-    "goals",
-    "triggers",
-    "eqBaseline",
-    "patterns",
-    "lifeContext",
-  ],
+  required: ["done"],
 };
 
-export async function buildCoreUserFileFromInterview(
-  answers: Array<{ question: string; answer: string }>
-): Promise<CoreUserFile> {
-  const qa = answers
-    .map((a, i) => `Q${i + 1}: ${a.question}\nA${i + 1}: ${a.answer}`)
+export async function checkInterviewComplete(
+  conversation: Array<{ role: string; text: string }>
+): Promise<{ done: boolean }> {
+  const transcript = conversation
+    .map((m) => `[${m.role === "assistant" ? "AI" : "User"}]: ${m.text}`)
     .join("\n\n");
 
-  return generateStructuredJson<CoreUserFile>(
-    `You are building an initial user profile for Reflectif, an emotional-intelligence coaching app.
+  return generateStructuredJson<{ done: boolean }>(
+    `You are judging whether an onboarding interview is complete.
 
-Below are the user's onboarding interview answers. Extract and synthesize the information into each profile field. Write in third person, as if documenting what you learned about this person. Be thorough but concise — each field should be 2-4 sentences. If a field has no relevant information from the interview, write "Not yet determined — will be updated as more information becomes available."
+Read the full conversation below. The AI interviewer is getting to know a new user — asking about their background, relationships, emotional triggers, goals, and coping mechanisms.
 
-Interview:
-${qa}`,
-    coreUserFileSchema
+Decide if the interview has reached a natural conclusion. Consider:
+- Has the AI covered enough ground to understand the user? (4+ topics explored = sufficient)
+- Is the AI's latest message a closing/sign-off rather than a new question?
+- Has there been enough back-and-forth? (5+ exchanges is usually sufficient)
+- Even if the AI asks a trailing question like "anything else?", if the conversation has clearly covered substantial ground, it's done.
+
+Be decisive. If the conversation has clearly covered enough territory and the AI's last message feels like a wrap-up (even an imperfect one), mark it done. Don't require a pixel-perfect sign-off.
+
+Conversation:
+"""
+${transcript}
+"""`,
+    interviewCompleteSchema
   );
 }

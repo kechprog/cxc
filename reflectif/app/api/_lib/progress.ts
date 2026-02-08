@@ -4,16 +4,13 @@ import { generateStructuredJson } from "./gemini";
 import { DbHandlers } from "@/lib/db/handlers";
 import type { UserProgress } from "@/lib/types/progress";
 import { EQ_DIMENSION_NAMES } from "@/lib/types/progress";
-import type { CoreUserFile } from "@/lib/types/user";
 import type { ConversationAnalysisWithTranscripts } from "@/lib/db/dto";
 
 // --- Cache helpers ---
 
 function computeInputHash(
-  analyses: ConversationAnalysisWithTranscripts[],
-  coreUserFile: CoreUserFile | null
+  analyses: ConversationAnalysisWithTranscripts[]
 ): string {
-  // Create a deterministic representation of the input data
   const analysisFingerprints = analyses.map((a) => ({
     id: a.id,
     analyzedAt: a.analyzedAt,
@@ -21,19 +18,14 @@ function computeInputHash(
     patterns: a.patterns,
   }));
 
-  const payload = JSON.stringify({
-    analyses: analysisFingerprints,
-    coreUserFile,
-  });
-
+  const payload = JSON.stringify({ analyses: analysisFingerprints });
   return createHash("sha256").update(payload).digest("hex").slice(0, 16);
 }
 
 // --- Prompt builder ---
 
 function buildProgressPrompt(
-  analyses: ConversationAnalysisWithTranscripts[],
-  coreUserFile: CoreUserFile | null
+  analyses: ConversationAnalysisWithTranscripts[]
 ): string {
   const lines: string[] = [
     "# User Progress Analysis Request\n",
@@ -43,21 +35,6 @@ function buildProgressPrompt(
     "Use your memory of this user to enrich your analysis.",
     "Do NOT fabricate evidence — only reference what is provided below.\n",
   ];
-
-  // Core user file context
-  if (coreUserFile) {
-    lines.push("## User Context (Core File)\n");
-    if (coreUserFile.background) lines.push(`- **Background:** ${coreUserFile.background}`);
-    if (coreUserFile.relationships) lines.push(`- **Relationships:** ${coreUserFile.relationships}`);
-    if (coreUserFile.goals) lines.push(`- **Goals:** ${coreUserFile.goals}`);
-    if (coreUserFile.triggers) lines.push(`- **Triggers:** ${coreUserFile.triggers}`);
-    if (coreUserFile.eqBaseline) lines.push(`- **EQ Baseline:** ${coreUserFile.eqBaseline}`);
-    if (coreUserFile.patterns) lines.push(`- **Known Patterns:** ${coreUserFile.patterns}`);
-    if (coreUserFile.lifeContext) lines.push(`- **Life Context:** ${coreUserFile.lifeContext}`);
-    lines.push("");
-  } else {
-    lines.push("## User Context\n_No user profile available yet._\n");
-  }
 
   // Per-conversation data
   const first = analyses[0].analyzedAt;
@@ -248,7 +225,6 @@ export async function generateProgress(
   const db = DbHandlers.getInstance();
 
   const analyses = db.getConversationAnalysesInWindow(userId, since);
-  const coreUserFile = db.getCoreUserFile(userId);
 
   if (analyses.length === 0) {
     return {
@@ -263,7 +239,7 @@ export async function generateProgress(
   }
 
   // Check cache before calling LLM
-  const inputHash = computeInputHash(analyses, coreUserFile);
+  const inputHash = computeInputHash(analyses);
   const cached = db.getProgressCache(userId, inputHash);
   if (cached) {
     console.log("[progress] Cache hit, returning cached progress");
@@ -277,7 +253,7 @@ export async function generateProgress(
 
   // Stage 1: Backboard (Gemini 3.0 Pro) with memory:read
   const threadId = await createThread(user.backboardAssistantId);
-  const prompt = buildProgressPrompt(analyses, coreUserFile);
+  const prompt = buildProgressPrompt(analyses);
   const { content: markdown } = await sendMessage(
     threadId,
     prompt,

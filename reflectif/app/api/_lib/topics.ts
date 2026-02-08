@@ -2,34 +2,20 @@ import { createThread, sendMessage } from "@/lib/backboard";
 import { generateStructuredJson } from "./gemini";
 import { DbHandlers } from "@/lib/db/handlers";
 import type { TopicSuggestion } from "@/lib/types/chat";
-import type { CoreUserFile } from "@/lib/types/user";
 import type { ConversationAnalysisWithTranscripts } from "@/lib/db/dto";
 
 // --- Prompt builder ---
 
 function buildTopicsPrompt(
-  analyses: ConversationAnalysisWithTranscripts[],
-  coreUserFile: CoreUserFile | null
+  analyses: ConversationAnalysisWithTranscripts[]
 ): string {
   const lines: string[] = [
     "# Topic Suggestion Request\n",
     "You are generating 3 personalized conversation topic suggestions for a Reflectif EQ coaching session.",
     "Each topic must be grounded in the user's actual conversation history provided below.",
+    "Use your memory of this user to provide personalized suggestions.",
     "Do NOT suggest generic topics — every suggestion must reference specific patterns, behaviors, or situations from the data.\n",
   ];
-
-  // Core user file context
-  if (coreUserFile) {
-    lines.push("## User Context (Core File)\n");
-    if (coreUserFile.background) lines.push(`- **Background:** ${coreUserFile.background}`);
-    if (coreUserFile.relationships) lines.push(`- **Relationships:** ${coreUserFile.relationships}`);
-    if (coreUserFile.goals) lines.push(`- **Goals:** ${coreUserFile.goals}`);
-    if (coreUserFile.triggers) lines.push(`- **Triggers:** ${coreUserFile.triggers}`);
-    if (coreUserFile.eqBaseline) lines.push(`- **EQ Baseline:** ${coreUserFile.eqBaseline}`);
-    if (coreUserFile.patterns) lines.push(`- **Known Patterns:** ${coreUserFile.patterns}`);
-    if (coreUserFile.lifeContext) lines.push(`- **Life Context:** ${coreUserFile.lifeContext}`);
-    lines.push("");
-  }
 
   // Per-conversation data
   const first = analyses[0].analyzedAt;
@@ -140,11 +126,9 @@ export async function generateTopics(
     return [];
   }
 
-  const coreUserFile = db.getCoreUserFile(userId);
-
   // Stage 1: Backboard (memory:read) → markdown suggestions
   const threadId = await createThread(user.backboardAssistantId);
-  const prompt = buildTopicsPrompt(analyses, coreUserFile);
+  const prompt = buildTopicsPrompt(analyses);
 
   const { content: markdown } = await sendMessage(
     threadId,

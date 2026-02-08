@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { matchSpeaker } from "@/app/api/_lib/speaker-id";
+import { extractEmbedding, cosineSimilarity } from "@/app/api/_lib/speaker-id";
 import { DbHandlers } from "@/lib/db/handlers";
 import { auth0 } from "@/lib/auth0";
+
+const MATCH_SCORE_THRESHOLD = 0.5;
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,18 +25,17 @@ export async function POST(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    if (!user.voiceId) {
+    if (!user.voiceEmbedding) {
       return NextResponse.json({ error: "User has no enrolled voice" }, { status: 400 });
     }
 
     const arrayBuffer = await audioFile.arrayBuffer();
     const audioBuffer = Buffer.from(arrayBuffer);
 
-    const { voiceId, score } = await matchSpeaker(audioBuffer);
+    const embedding = await extractEmbedding(audioBuffer);
+    const score = cosineSimilarity(embedding, user.voiceEmbedding);
 
-    const match = voiceId === user.voiceId;
-
-    return NextResponse.json({ match, score });
+    return NextResponse.json({ match: score >= MATCH_SCORE_THRESHOLD, score });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });

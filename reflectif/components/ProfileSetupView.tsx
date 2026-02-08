@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiMic, FiCheck, FiUser } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { encodeWav } from "@/lib/audio/encode-wav";
-import { INTERVIEW_PROMPTS } from "@/lib/constants/interview";
 
 type SetupStep = "intro" | "voice_sample_1" | "voice_sample_2" | "ai_interview" | "complete";
 
@@ -21,7 +20,6 @@ export function ProfileSetupView({ onComplete }: { onComplete?: () => void } = {
     const [isProcessing, setIsProcessing] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [savedProfile, setSavedProfile] = useState<Record<string, string> | null>(null);
 
     // Voice sample state
     const [voicePassage1, setVoicePassage1] = useState(DEFAULT_PASSAGE_1);
@@ -30,11 +28,8 @@ export function ProfileSetupView({ onComplete }: { onComplete?: () => void } = {
 
     // AI Interview state
     const [aiMessages, setAiMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([]);
-    const [currentQuestion, setCurrentQuestion] = useState(0);
-    const [interviewAnswers, setInterviewAnswers] = useState<Array<{ question: string; answer: string }>>([]);
-    const [previousAttempts, setPreviousAttempts] = useState<string[]>([]);
-    const [totalQuestionsAsked, setTotalQuestionsAsked] = useState(1); // starts at 1 (first question shown)
-    const MAX_TOTAL_QUESTIONS = 5;
+    const [interviewInitialized, setInterviewInitialized] = useState(false);
+    const exchangeCountRef = useRef(0);
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
@@ -49,6 +44,32 @@ export function ProfileSetupView({ onComplete }: { onComplete?: () => void } = {
             }
         };
     }, []);
+
+    // Initialize interview when entering ai_interview step
+    useEffect(() => {
+        if (step !== "ai_interview" || interviewInitialized) return;
+
+        const init = async () => {
+            try {
+                const formData = new FormData();
+                const res = await fetch("/api/profile/setup/chat", {
+                    method: "POST",
+                    body: formData,
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    setErrorMessage(data.error ?? "Failed to start interview.");
+                    return;
+                }
+                setAiMessages([{ role: "assistant", text: data.message }]);
+                setInterviewInitialized(true);
+            } catch (err) {
+                console.error("Interview init failed:", err);
+                setErrorMessage("Failed to start interview. Please try again.");
+            }
+        };
+        init();
+    }, [step, interviewInitialized]);
 
     const startRecording = useCallback(async () => {
         try {
@@ -138,7 +159,7 @@ export function ProfileSetupView({ onComplete }: { onComplete?: () => void } = {
                         return;
                     }
 
-                    console.log("Voice enrolled:", data.voiceId);
+                    console.log("Voice enrolled successfully");
                     setIsProcessing(false);
                     setStep("voice_sample_2");
                 } else if (step === "voice_sample_2") {
@@ -159,7 +180,6 @@ export function ProfileSetupView({ onComplete }: { onComplete?: () => void } = {
                         console.log("Voice verified, score:", data.score);
                         setIsProcessing(false);
                         setStep("ai_interview");
-                        setAiMessages([{ role: "assistant", text: INTERVIEW_PROMPTS[0] }]);
                     } else {
                         // Verification failed — update passages and loop back
                         console.log("Voice verification failed:", data.reason);
@@ -194,11 +214,12 @@ export function ProfileSetupView({ onComplete }: { onComplete?: () => void } = {
             try {
                 const wavBlob = await stopAndGetWav();
                 const formData = new FormData();
-                formData.append("audio", wavBlob, `interview_q${currentQuestion}_${Date.now()}.wav`);
-                formData.append("questionIndex", String(currentQuestion));
-                formData.append("previousAttempts", JSON.stringify(previousAttempts));
+                formData.append("audio", wavBlob, `interview_${Date.now()}.wav`);
+                exchangeCountRef.current += 1;
+                formData.append("exchangeCount", String(exchangeCountRef.current));
+                formData.append("conversation", JSON.stringify(aiMessages));
 
-                const res = await fetch("/api/profile/setup/answer", {
+                const res = await fetch("/api/profile/setup/chat", {
                     method: "POST",
                     body: formData,
                 });
@@ -210,45 +231,16 @@ export function ProfileSetupView({ onComplete }: { onComplete?: () => void } = {
                     return;
                 }
 
-                // Show the transcription as user message
-                setAiMessages((prev) => [...prev, { role: "user", text: data.transcription }]);
+                // Show transcription as user message, then AI response
+                setAiMessages((prev) => [
+                    ...prev,
+                    { role: "user", text: data.transcription },
+                    { role: "assistant", text: data.message },
+                ]);
 
-                // Accept the answer (either satisfactory, or we've hit the question cap)
-                const atQuestionLimit = totalQuestionsAsked >= MAX_TOTAL_QUESTIONS;
-
-                if (data.satisfied || atQuestionLimit) {
-                    const acceptedAnswer = {
-                        question: INTERVIEW_PROMPTS[currentQuestion],
-                        answer: data.transcription,
-                    };
-                    const updatedAnswers = [...interviewAnswers, acceptedAnswer];
-                    setInterviewAnswers(updatedAnswers);
-                    setPreviousAttempts([]);
-
-                    const nextQuestion = currentQuestion + 1;
-                    if (nextQuestion < INTERVIEW_PROMPTS.length && !atQuestionLimit) {
-                        setTotalQuestionsAsked((c) => c + 1);
-                        setAiMessages((prev) => [
-                            ...prev,
-                            { role: "assistant", text: INTERVIEW_PROMPTS[nextQuestion] },
-                        ]);
-                        setCurrentQuestion(nextQuestion);
-                    } else {
-                        // All questions answered or limit reached — complete profile
-                        setAiMessages((prev) => [
-                            ...prev,
-                            { role: "assistant", text: "Thank you for sharing. Building your profile..." },
-                        ]);
-                        await completeProfile(updatedAnswers);
-                    }
-                } else {
-                    // Not satisfactory — show follow-up and stay on same question
-                    setTotalQuestionsAsked((c) => c + 1);
-                    setPreviousAttempts((prev) => [...prev, data.transcription]);
-                    setAiMessages((prev) => [
-                        ...prev,
-                        { role: "assistant", text: data.followUp ?? "Could you tell me more about that?" },
-                    ]);
+                if (data.done) {
+                    // Brief delay so user can read the closing message
+                    setTimeout(() => setStep("complete"), 2000);
                 }
 
                 setIsProcessing(false);
@@ -259,29 +251,6 @@ export function ProfileSetupView({ onComplete }: { onComplete?: () => void } = {
             }
         } else {
             await startRecording();
-        }
-    };
-
-    const completeProfile = async (answers: Array<{ question: string; answer: string }>) => {
-        try {
-            const res = await fetch("/api/profile/setup/complete", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ answers }),
-            });
-            const data = await res.json();
-
-            if (!res.ok || !data.success) {
-                setErrorMessage(data.error ?? "Failed to build profile. Please try again.");
-                return;
-            }
-
-            console.log("Profile created:", data.profile);
-            setSavedProfile(data.profile);
-            setStep("complete");
-        } catch (err) {
-            console.error("Profile completion failed:", err);
-            setErrorMessage("Failed to save profile. Please try again.");
         }
     };
 

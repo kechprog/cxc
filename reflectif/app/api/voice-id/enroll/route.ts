@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { enrollSpeaker } from "@/app/api/_lib/speaker-id";
+import { extractEmbedding } from "@/app/api/_lib/speaker-id";
 import { DbHandlers } from "@/lib/db/handlers";
 import { auth0 } from "@/lib/auth0";
 
@@ -27,12 +27,12 @@ export async function POST(request: NextRequest) {
     const arrayBuffer = await audioFile.arrayBuffer();
     const audioBuffer = Buffer.from(arrayBuffer);
 
-    const voiceId = await enrollSpeaker(audioBuffer);
+    const embedding = await extractEmbedding(audioBuffer);
 
     const db = DbHandlers.getInstance();
-    db.updateUserVoiceId(userId, voiceId);
+    db.updateUserVoiceEmbedding(userId, embedding);
 
-    return NextResponse.json({ success: true, voiceId });
+    return NextResponse.json({ success: true });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(

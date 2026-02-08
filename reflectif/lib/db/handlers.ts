@@ -1,8 +1,6 @@
 import type Database from "better-sqlite3";
 import type {
   User,
-  CoreUserFile,
-  CoreUserFileUpdate,
   ConversationAnalysis,
   ConversationAnalysisListItem,
   TranscriptMessage,
@@ -13,7 +11,6 @@ import type {
 import type { UserProgress } from "@/lib/types/progress";
 import {
   type UserRow,
-  type CoreUserFileRow,
   type ConversationAnalysisRow,
   type ConversationPhaseRow,
   type ChatRow,
@@ -21,8 +18,6 @@ import {
   type ConversationAnalysisWithTranscripts,
   userFromRow,
   userToRow,
-  coreUserFileFromRow,
-  coreUserFileToRow,
   conversationAnalysisFromRow,
   conversationPhaseToRow,
   chatFromRow,
@@ -52,21 +47,21 @@ export class DbHandlers {
     const row = userToRow(user);
     this.db
       .prepare(
-        `INSERT INTO users (id, voice_id, backboard_assistant_id, created_at) VALUES (?, ?, ?, ?)`
+        `INSERT INTO users (id, voice_embedding, backboard_assistant_id, onboarding_thread_id, profile_complete, created_at) VALUES (?, ?, ?, ?, ?, ?)`
       )
-      .run(row.id, row.voice_id, row.backboard_assistant_id, row.created_at);
+      .run(row.id, row.voice_embedding, row.backboard_assistant_id, row.onboarding_thread_id, row.profile_complete, row.created_at);
   }
 
-  updateUserVoiceId(userId: string, voiceId: string): void {
+  updateUserVoiceEmbedding(userId: string, embedding: number[]): void {
     this.db
-      .prepare(`UPDATE users SET voice_id = ? WHERE id = ?`)
-      .run(voiceId, userId);
+      .prepare(`UPDATE users SET voice_embedding = ? WHERE id = ?`)
+      .run(JSON.stringify(embedding), userId);
   }
 
   ensureUser(id: string): void {
     this.db
       .prepare(
-        `INSERT OR IGNORE INTO users (id, voice_id, backboard_assistant_id, created_at) VALUES (?, NULL, NULL, ?)`
+        `INSERT OR IGNORE INTO users (id, voice_embedding, backboard_assistant_id, onboarding_thread_id, profile_complete, created_at) VALUES (?, NULL, NULL, NULL, 0, ?)`
       )
       .run(id, new Date().toISOString());
   }
@@ -84,59 +79,24 @@ export class DbHandlers {
     return row ? userFromRow(row) : null;
   }
 
-  // ── Core User File ────────────────────────────────────
+  // ── Onboarding ──────────────────────────────────────────
 
-  getCoreUserFile(userId: string): CoreUserFile | null {
-    const row = this.db
-      .prepare(`SELECT * FROM core_user_files WHERE user_id = ?`)
-      .get(userId) as CoreUserFileRow | undefined;
-    return row ? coreUserFileFromRow(row) : null;
-  }
-
-  upsertCoreUserFile(userId: string, file: CoreUserFile): void {
-    const row = coreUserFileToRow(userId, file);
+  setUserOnboardingThreadId(userId: string, threadId: string): void {
     this.db
-      .prepare(
-        `INSERT INTO core_user_files (user_id, background, relationships, goals, triggers, eq_baseline, patterns, life_context)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(user_id) DO UPDATE SET
-           background = excluded.background,
-           relationships = excluded.relationships,
-           goals = excluded.goals,
-           triggers = excluded.triggers,
-           eq_baseline = excluded.eq_baseline,
-           patterns = excluded.patterns,
-           life_context = excluded.life_context`
-      )
-      .run(
-        row.user_id,
-        row.background,
-        row.relationships,
-        row.goals,
-        row.triggers,
-        row.eq_baseline,
-        row.patterns,
-        row.life_context
-      );
+      .prepare(`UPDATE users SET onboarding_thread_id = ? WHERE id = ?`)
+      .run(threadId, userId);
   }
 
-  updateCoreUserFile(userId: string, update: CoreUserFileUpdate): void {
-    const existing = this.getCoreUserFile(userId);
-    if (!existing) {
-      // If no file exists, create one with defaults merged with the update
-      const base: CoreUserFile = {
-        background: "",
-        relationships: "",
-        goals: "",
-        triggers: "",
-        eqBaseline: "",
-        patterns: "",
-        lifeContext: "",
-      };
-      this.upsertCoreUserFile(userId, { ...base, ...update });
-      return;
-    }
-    this.upsertCoreUserFile(userId, { ...existing, ...update });
+  clearUserOnboardingThreadId(userId: string): void {
+    this.db
+      .prepare(`UPDATE users SET onboarding_thread_id = NULL WHERE id = ?`)
+      .run(userId);
+  }
+
+  setProfileComplete(userId: string): void {
+    this.db
+      .prepare(`UPDATE users SET profile_complete = 1 WHERE id = ?`)
+      .run(userId);
   }
 
   // ── Conversation Analyses ─────────────────────────────

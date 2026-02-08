@@ -27,7 +27,8 @@ export default async function RootLayout({
   const userId = session!.user.sub;
   const db = DbHandlers.getInstance();
   const conversations = db.listConversationAnalyses(userId);
-  const profileComplete = db.getCoreUserFile(userId) !== null;
+  const user = db.getUser(userId);
+  const profileComplete = user?.profileComplete ?? false;
 
   return (
     <html lang="en" className="dark">
