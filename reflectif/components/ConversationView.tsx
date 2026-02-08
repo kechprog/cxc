@@ -9,6 +9,12 @@ import { motion } from "framer-motion";
 
 export function ConversationView({ conversation, transcript }: { conversation: ConversationAnalysis, transcript: TranscriptMessage[] }) {
     const [viewMode, setViewMode] = useState<"dashboard" | "chat">("dashboard");
+    const [selectedInsight, setSelectedInsight] = useState<string | undefined>();
+
+    const handleChatClick = (insight?: string) => {
+        setSelectedInsight(insight);
+        setViewMode("chat");
+    };
 
     if (viewMode === "chat") {
         // CHAT VIEW (Split Screen)
@@ -33,7 +39,7 @@ export function ConversationView({ conversation, transcript }: { conversation: C
                         </button>
                     </div>
                     <div className="flex-1 overflow-hidden relative flex flex-col">
-                        <AssistantChat context={conversation} />
+                        <AssistantChat context={conversation} initialInsight={selectedInsight} />
                     </div>
                 </div>
 
@@ -53,15 +59,9 @@ export function ConversationView({ conversation, transcript }: { conversation: C
             className="max-w-5xl mx-auto pb-20 p-4 lg:p-0"
         >
             <div className="flex justify-end mb-4">
-                <button
-                    onClick={() => setViewMode("chat")}
-                    className="group relative inline-flex items-center gap-2 px-6 py-3 bg-violet-600 hover:bg-violet-500 text-white rounded-full transition-all duration-300 hover:shadow-[0_0_30px_rgba(139,92,246,0.3)]"
-                >
-                    <FiCpu className="w-4 h-4" />
-                    <span className="text-sm font-medium">Start AI Therapy Session</span>
-                </button>
+                {/* Button removed as per user request - interaction now driven by insights */}
             </div>
-            <DashboardContent conversation={conversation} transcript={transcript} showChatButton={true} onChatClick={() => setViewMode("chat")} />
+            <DashboardContent conversation={conversation} transcript={transcript} showChatButton={true} onChatClick={handleChatClick} />
         </motion.div>
     );
 }

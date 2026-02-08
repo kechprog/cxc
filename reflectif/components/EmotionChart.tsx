@@ -13,7 +13,7 @@ import {
 import { EMOTIONS, EMOTION_COLORS } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
-const toPercent = (decimal: number, fixed = 0) => `${(decimal * 100).toFixed(fixed)}%`;
+const toPercent = (decimal: number) => `${Math.round(decimal * 100)}%`;
 
 const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -31,7 +31,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
                                     <span className="text-zinc-200">{entry.name}</span>
                                 </div>
-                                <span className="font-mono text-zinc-400">{toPercent(entry.value, 1)}</span>
+                                <span className="font-mono text-zinc-400">{toPercent(entry.value)}</span>
                             </div>
                         )
                     ))}
@@ -45,20 +45,40 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export function EmotionChart({ data = [], className }: { data?: any[], className?: string }) {
     // Adapter: Handle arch_v2 structure if needed
     // If data comes in as { timestamp, scores: {} }, flatten it for Recharts
-    const chartData = data.map((point: any) => {
+    const rawData = data.map((point: any) => {
         const ts = typeof point.timestamp === "number"
             ? `${Math.floor(point.timestamp / 60).toString().padStart(2, "0")}:${Math.floor(point.timestamp % 60).toString().padStart(2, "0")}`
             : point.time ?? "";
 
         if (point.scores) {
             // Mock data format: { timestamp, scores: { Joy: 0.3, ... } }
-            return { time: ts, ...point.scores };
+            const flat: Record<string, number | string> = { time: ts, ...point.scores };
+
+            // Normalize mock scores to sum to 1.0
+            let totalScore = 0;
+            const keys = Object.keys(point.scores);
+            for (const key of keys) {
+                totalScore += point.scores[key] || 0;
+            }
+
+            for (const key of keys) {
+                flat[key] = totalScore > 0 ? (point.scores[key] || 0) / totalScore : 0;
+            }
+            return flat;
         }
         if (point.emotions && Array.isArray(point.emotions)) {
             // Pipeline format: { timestamp, speaker, emotions: [{ name, score }] }
             const flat: Record<string, number | string> = { time: ts };
+
+            // Normalize scores to sum to 1.0
+            let totalScore = 0;
             for (const e of point.emotions) {
-                flat[e.name] = e.score;
+                totalScore += e.score;
+            }
+
+            for (const e of point.emotions) {
+                // If total is 0, avoid division by zero
+                flat[e.name] = totalScore > 0 ? e.score / totalScore : 0;
             }
             return flat;
         }
@@ -67,8 +87,8 @@ export function EmotionChart({ data = [], className }: { data?: any[], className
 
     // Find top emotions by average score across all data points
     const MAX_EMOTIONS = 6;
-    const emotionKeys = chartData.length > 0
-        ? Object.keys(chartData[0]).filter(k => k !== "time")
+    const emotionKeys = rawData.length > 0
+        ? Object.keys(rawData[0]).filter(k => k !== "time")
         : [];
 
     let topEmotions = emotionKeys;
@@ -77,7 +97,7 @@ export function EmotionChart({ data = [], className }: { data?: any[], className
         for (const key of emotionKeys) {
             let sum = 0;
             let count = 0;
-            for (const point of chartData) {
+            for (const point of rawData) {
                 const val = point[key];
                 if (typeof val === "number") { sum += val; count++; }
             }
@@ -88,6 +108,31 @@ export function EmotionChart({ data = [], className }: { data?: any[], className
             .slice(0, MAX_EMOTIONS)
             .map(([k]) => k);
     }
+
+    // FINAL PASS: Normalize ONLY the top emotions to sum to 100%
+    const chartData = rawData.map(point => {
+        const normalized: any = { time: point.time };
+        let total = 0;
+
+        // Sum only the top emotions
+        for (const emotion of topEmotions) {
+            const val = point[emotion];
+            if (typeof val === "number") {
+                total += val;
+            }
+        }
+
+        // Re-distribute to sum to 1.0
+        for (const emotion of topEmotions) {
+            const val = point[emotion];
+            if (typeof val === "number") {
+                normalized[emotion] = total > 0 ? val / total : 0;
+            } else {
+                normalized[emotion] = 0;
+            }
+        }
+        return normalized;
+    });
 
     return (
         <div className={cn("w-full h-full", className)}>
@@ -111,7 +156,7 @@ export function EmotionChart({ data = [], className }: { data?: any[], className
                         tick={{ fill: "#52525b", fontSize: 10 }}
                         tickLine={false}
                         axisLine={false}
-                        width={40}
+                        width={50}
                         domain={[0, 1]}
                     />
                     <Tooltip content={<CustomTooltip />} />

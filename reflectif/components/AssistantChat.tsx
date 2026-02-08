@@ -13,31 +13,129 @@ interface Message {
     isAudio?: boolean;
 }
 
-export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
+export function AssistantChat({ context, initialInsight, mode = "insight" }: { context?: ConversationAnalysis, initialInsight?: string, mode?: "insight" | "global" }) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [chatId, setChatId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
     const [isRecording, setIsRecording] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const isGeneratingRef = useRef(false);
 
     useEffect(() => {
-        if (messages.length === 0) {
-            if (context) {
+        console.log("[AssistantChat] Effect Run.", {
+            insight: initialInsight,
+            contextId: context?.id,
+            msgCount: messages.length,
+            isThinking,
+            isGenerating: isGeneratingRef.current,
+            mode
+        });
+
+        if (messages.length === 0 && !isGeneratingRef.current) {
+            if (mode === "global") {
+                console.log("[AssistantChat] Triggering Global Observation chat...");
+                isGeneratingRef.current = true;
+
+                const generateGlobalStarter = async () => {
+                    setIsThinking(true);
+                    try {
+                        const res = await fetch("/api/chat", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                mode: "global",
+                                message: `[SYSTEM INSTRUCTION] The user wants to 'Observe Themselves' based on all available data. \n\nGoal: Start a short, easy-to-understand conversation about the user's overall patterns as if you are a compassionate Psychology Professor. \n\nRules:\n1. Keep it BRIEF (under 2 sentences) and use simple, everyday language.\n2. Adopt a warm, accessible tone.\n3. Reference their 'Core User File' data if useful.\n4. Ask one simple question to help the user reflect.`
+                            }),
+                        });
+
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            throw new Error(`Failed to generate starter: ${res.status} ${errText}`);
+                        }
+
+                        const data = await res.json();
+                        if (!data.content) throw new Error("Empty response from AI");
+
+                        setChatId(data.chatId);
+                        setMessages([{
+                            id: "welcome",
+                            role: "assistant",
+                            text: data.content
+                        }]);
+                    } catch (err) {
+                        console.error("Error generating global starter:", err);
+                        setMessages([{
+                            id: "welcome",
+                            role: "assistant",
+                            text: "I'm ready to help you observe your patterns and growth based on your history. What's on your mind?"
+                        }]);
+                    } finally {
+                        setIsThinking(false);
+                        isGeneratingRef.current = false;
+                    }
+                };
+                generateGlobalStarter();
+            } else if (initialInsight && context) {
+                console.log("[AssistantChat] Triggering AI generation for insight...");
+                isGeneratingRef.current = true;
+
+                const generateStarter = async () => {
+                    setIsThinking(true);
+                    try {
+                        const res = await fetch("/api/chat", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                message: `[SYSTEM INSTRUCTION] The user clicked on this insight from their recent conversation: "${initialInsight}". \n\nGoal: Start a short, easy-to-understand conversation about this topic as if you are a compassionate Psychology Professor. \n\nRules:\n1. Keep it BRIEF (under 2 sentences) and use simple, everyday language.\n2. Adopt a warm, accessible tone.\n3. Do NOT say "I noticed you clicked..." or "Here is an insight...".\n4. Start naturally by explaining the concept simply.\n5. Ask one simple question to help the user reflect.`,
+                                conversationAnalysisId: context.id
+                            }),
+                        });
+
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            throw new Error(`Failed to generate starter: ${res.status} ${errText}`);
+                        }
+
+                        const data = await res.json();
+                        if (!data.content) throw new Error("Empty response from AI");
+
+                        setChatId(data.chatId);
+                        setMessages([{
+                            id: "welcome",
+                            role: "assistant",
+                            text: data.content
+                        }]);
+                    } catch (err) {
+                        console.error("[AssistantChat] Error generating starter:", err);
+                        setMessages([{
+                            id: "welcome",
+                            role: "assistant",
+                            text: `I noticed this insight from your recent conversation:\n\n**"${initialInsight}"**\n\nLet's explore this together.`
+                        }]);
+                    } finally {
+                        setIsThinking(false);
+                        isGeneratingRef.current = false;
+                    }
+                };
+                generateStarter();
+            } else if (context) {
+                console.log("[AssistantChat] Setting default context message");
                 setMessages([{
                     id: "welcome",
                     role: "assistant",
                     text: `During this conversation, it would be great to observe your **${context.label}** pattern. \n\nI noticed distinct phases of ${context.dynamics.map(d => d.phase).join(" and ")}. \n\nWhat do you think triggered the shift?`
                 }]);
             } else {
+                console.log("[AssistantChat] Setting default no-context message");
                 setMessages([{
                     id: "welcome",
                     role: "assistant",
-                    text: "Over the last 7 days, you've been consistent with self-reflection. \n\nHowever, I've observed a recurring theme of **high anxiety** in the evenings. \n\nLet's observe this pattern together. How have you been feeling after work this week?"
+                    text: "Over the last 7 days, you've been consistent with self-reflection. \n\nHowever, I've observed a recurring theme of high anxiety in the evenings. \n\nLet's observe this pattern together. How have you been feeling after work this week?"
                 }]);
             }
         }
-    }, [context]);
+    }, [context?.id, initialInsight, mode]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -176,6 +274,16 @@ export function AssistantChat({ context }: { context?: ConversationAnalysis }) {
                 )}
 
                 <div ref={messagesEndRef} className="h-1" />
+
+                {messages.length === 0 && !isThinking && (
+                    <div className="text-center text-red-400 p-10 font-mono text-xs">
+                        DEBUG: No messages loaded.
+                        <br />
+                        Insight: {initialInsight ? "YES" : "NO"}
+                        <br />
+                        Context: {context ? "YES" : "NO"}
+                    </div>
+                )}
             </div>
 
             {/* Input Area */}

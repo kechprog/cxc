@@ -155,6 +155,13 @@ export class DbHandlers {
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     );
 
+    console.log("Inserting conversation analysis:", analysis.id);
+    if (analysis.dynamics && analysis.dynamics.length > 0) {
+      console.log("Inserting phases with insights:", JSON.stringify(analysis.dynamics.map(d => ({ phase: d.phase, insight: d.insight })), null, 2));
+    } else {
+      console.warn("No dynamics/phases to insert for conversation:", analysis.id);
+    }
+
     const run = this.db.transaction(() => {
       insertAnalysis.run(
         analysis.id,
@@ -218,9 +225,9 @@ export class DbHandlers {
          ORDER BY analyzed_at DESC`
       )
       .all(userId) as Pick<
-      ConversationAnalysisRow,
-      "id" | "analyzed_at" | "emoji" | "label" | "summary"
-    >[];
+        ConversationAnalysisRow,
+        "id" | "analyzed_at" | "emoji" | "label" | "summary"
+      >[];
 
     return rows.map((r) => ({
       id: r.id,
@@ -236,6 +243,14 @@ export class DbHandlers {
     this.db
       .prepare(`DELETE FROM conversation_analyses WHERE id = ?`)
       .run(id);
+  }
+
+  getGlobalUserEmotions(userId: string): any[] {
+    const rows = this.db
+      .prepare(`SELECT scores FROM conversation_analyses WHERE user_id = ?`)
+      .all(userId) as { scores: string }[];
+
+    return rows.map(r => JSON.parse(r.scores)).flat();
   }
 
   // ── Chats ─────────────────────────────────────────────

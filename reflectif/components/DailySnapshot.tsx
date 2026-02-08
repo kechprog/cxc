@@ -6,18 +6,29 @@ import { cn } from "@/lib/utils";
 import { EmotionChart } from "@/components/EmotionChart";
 import type { ConversationAnalysis } from "@/lib/types";
 
-export function DailySnapshot({ latestConversation }: { latestConversation?: ConversationAnalysis }) {
+export function DailySnapshot({
+    latestConversation,
+    onObserveClick,
+    globalScores
+}: {
+    latestConversation?: ConversationAnalysis,
+    onObserveClick?: () => void,
+    globalScores?: any[]
+}) {
     const TODAY_DATA = {
         moodEmoji: latestConversation?.emoji ?? "😐",
         moodLabel: latestConversation?.label ?? "No data",
         trend: "stable",
         trendLabel: "Consistent with observation",
         suggestion: {
-            title: "Suggestions for you today",
-            text: "You seem a bit flat today. Try a quick 5-minute walk to reset your energy levels.",
-            action: "Start Breathing Exercise",
+            title: "Deepen your awareness",
+            text: "Review your patterns across all sessions to find clarity in your journey.",
+            action: "Observe Myself",
         },
     };
+
+    const hasGlobalData = globalScores && globalScores.length > 0;
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -31,14 +42,16 @@ export function DailySnapshot({ latestConversation }: { latestConversation?: Con
             <div className="glass p-4 lg:p-5 rounded-2xl relative overflow-hidden lg:col-span-2 flex flex-col justify-between h-[220px] lg:h-[280px]">
                 <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                        <FiClock /> Latest Session
+                        <FiClock /> {hasGlobalData ? "Global Emotion Trends" : "Latest Session"}
                     </h3>
                     <div className="text-[10px] lg:text-xs text-zinc-500 bg-white/5 px-2 py-1 lg:px-3 lg:py-1.5 rounded-full border border-white/5">
-                        Emotion Distribution
+                        {hasGlobalData ? "All Sessions" : "Emotion Distribution"}
                     </div>
                 </div>
-                <div className="flex-1 w-full min-h-0">
-                    <EmotionChart data={latestConversation?.scores ?? []} className="h-full" />
+                <div className="flex-1 w-full min-h-[150px] relative">
+                    <div className="absolute inset-0">
+                        <EmotionChart data={hasGlobalData ? globalScores : (latestConversation?.scores || [])} className="h-full" />
+                    </div>
                 </div>
             </div>
 
@@ -68,7 +81,10 @@ export function DailySnapshot({ latestConversation }: { latestConversation?: Con
                 </div>
 
                 {/* Suggestions Card */}
-                <div className="glass p-3 lg:p-4 rounded-2xl relative overflow-hidden group hover:bg-white/5 transition-colors cursor-pointer flex-1 flex flex-col justify-center">
+                <div
+                    onClick={onObserveClick}
+                    className="glass p-3 lg:p-4 rounded-2xl relative overflow-hidden group hover:bg-white/5 transition-colors cursor-pointer flex-1 flex flex-col justify-center"
+                >
                     <div className="flex items-start gap-2 lg:gap-3">
                         <div className="p-1.5 lg:p-2 w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-amber-500/10 text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5 lg:mt-1">
                             <FiSun className="w-3.5 h-3.5 lg:w-4 lg:h-4" />

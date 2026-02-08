@@ -2,8 +2,27 @@ import { EmotionChart } from "@/components/EmotionChart";
 import { MOCK_USER_PROGRESS, EMOTION_DEFINITIONS, EMOTION_COLORS, EMOTIONS } from "@/lib/data";
 import { FiTrendingUp, FiAlertCircle, FiSun, FiActivity, FiInfo, FiAward, FiArrowUp } from "react-icons/fi";
 import { cn } from "@/lib/utils";
+import { DbHandlers } from "@/lib/db/handlers";
+import { auth0 } from "@/lib/auth0";
+import { aggregateScores } from "@/lib/analytics";
 
-export default function GlobalSummaryPage() {
+export default async function GlobalSummaryPage() {
+    // 1. Fetch User ID
+    const session = await auth0.getSession();
+    const userId = session!.user.sub;
+
+    // 2. Fetch Global Emotion Data
+    const db = DbHandlers.getInstance();
+    const totalConversations = db.listConversationAnalyses(userId).length;
+    let globalScores: any[] = [];
+    try {
+        const rawGlobalScores = db.getGlobalUserEmotions(userId);
+        globalScores = aggregateScores(rawGlobalScores);
+        console.log(`[Global Summary Page] Loaded ${globalScores.length} aggregated time buckets.`);
+    } catch (err) {
+        console.error("[Global Summary Page] Failed to load scores:", err);
+    }
+
     return (
         <div className="max-w-6xl mx-auto space-y-8 lg:space-y-12 pb-20">
 
@@ -92,12 +111,14 @@ export default function GlobalSummaryPage() {
                 <div className="flex items-center justify-between mb-4 lg:mb-8">
                     <h2 className="text-base lg:text-lg font-medium text-white flex items-center gap-2">
                         <FiActivity className="text-violet-400" />
-                        24h Emotion Distribution
+                        Emotion Distribution of {totalConversations} conversations
                     </h2>
                 </div>
-                <div className="h-[280px] lg:h-[400px] w-full">
-                    {/* Reusing Mock Data for chart as UserProgress doesn't have raw timeseries, assuming we fetch it separately or pass it in */}
-                    <EmotionChart />
+                <div className="h-[280px] lg:h-[400px] w-full relative">
+                    {/* Real Data Integration via new global aggregation logic */}
+                    <div className="absolute inset-0">
+                        <EmotionChart data={globalScores} className="h-full" />
+                    </div>
                 </div>
             </div>
 
