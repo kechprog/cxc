@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
     const userId = session.user.sub;
 
-    const { message, chatId, conversationAnalysisId, mode } = await req.json();
+    const { message, chatId, conversationAnalysisId, contextPrompt } = await req.json();
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
@@ -69,8 +69,10 @@ export async function POST(req: NextRequest) {
     // Build the message to send to the LLM
     let llmMessage = message;
 
-    // On first message of a new chat with conversation context, prepend it inline
-    if (!chatId && conversationAnalysisId) {
+    // On first message of a new chat, prepend context inline
+    if (!chatId && contextPrompt && typeof contextPrompt === "string") {
+      llmMessage = `${contextPrompt}\n\n---\n\n${message}`;
+    } else if (!chatId && conversationAnalysisId) {
       const analysis = db.getConversationAnalysis(conversationAnalysisId);
       if (analysis) {
         const context = [
@@ -78,21 +80,6 @@ export async function POST(req: NextRequest) {
           `Summary: ${analysis.summary}`,
           `Patterns observed: ${analysis.patterns.join("; ")}`,
           `Conversation phases: ${analysis.dynamics.map(d => `${d.phase} (${d.mood}): ${d.reason}`).join("; ")}`,
-        ].join("\n");
-        llmMessage = `${context}\n\n---\n\n${message}`;
-      }
-    }
-
-    // On global observation mode, inject Core User File context
-    if (!chatId && mode === "global") {
-      const coreFile = db.getCoreUserFile(userId);
-      if (coreFile) {
-        const context = [
-          `[Context: Core User File - Holistic View]`,
-          `Background: ${coreFile.background}`,
-          `Goals: ${coreFile.goals}`,
-          `Recurring Patterns: ${coreFile.patterns}`,
-          `Emotional Baseline: ${coreFile.eqBaseline}`,
         ].join("\n");
         llmMessage = `${context}\n\n---\n\n${message}`;
       }

@@ -84,11 +84,6 @@ export async function POST(request: Request) {
     let patterns: ConversationAnalysis["patterns"] = [];
 
     try {
-      console.log(`Starting analysis for ${pipelineResult.speakers.length} speakers.`);
-      if (pipelineResult.speakers.length > 0) {
-        console.log("First speaker data sample (utterances):", pipelineResult.speakers[0].utterances.length);
-      }
-
       const llmResult = await analyzeConversation(userId, pipelineResult.speakers);
       summary = llmResult.summary;
       emoji = llmResult.emoji;

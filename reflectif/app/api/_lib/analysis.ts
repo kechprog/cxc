@@ -259,17 +259,11 @@ ${timestampIndex}`;
     ANALYSIS_SCHEMA
   );
 
-  console.log(`Gemini extracted ${result.dynamics?.length ?? 0} phases and ${result.patterns?.length ?? 0} patterns.`);
-  result.dynamics?.forEach((p, i) => {
-    console.log(`Phase ${i + 1}: [${p.startTime}-${p.endTime}s] Insight: ${p.insight ? "YES" : "NO"} ("${p.insight?.substring(0, 30)}...")`);
-  });
-
   // Post-validate emoji
   if (!CONVERSATION_EMOJIS.includes(result.emoji as ConversationEmoji)) {
     result.emoji = "🤔";
   }
 
-  console.log("Gemini structured extraction result:", JSON.stringify(result, null, 2));
   return result;
 }
 
@@ -286,9 +280,7 @@ export async function analyzeConversation(
   const { prompt, timestampIndex } = buildAnalysisPrompt(speakers);
   const { content: markdown } = await sendMessage(threadId, prompt);
 
-  console.log("Backboard analysis complete. Markdown length:", markdown.length);
-  console.log("--- RAW MARKDOWN START ---\n", markdown, "\n--- RAW MARKDOWN END ---");
-  console.log("Extracting structured data...");
+  console.log("Backboard analysis complete, extracting structured data...");
 
   // Stage 2: Gemini (2.5 Flash) → structured JSON
   const analysis = await extractStructuredAnalysis(markdown, timestampIndex);
