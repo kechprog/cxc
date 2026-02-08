@@ -4,7 +4,6 @@ import { useState } from "react";
 import type { ConversationAnalysis, TranscriptMessage } from "@/lib/types";
 import { AssistantChat } from "@/components/AssistantChat";
 import { DashboardContent } from "@/components/DashboardContent";
-import { FiCpu } from "react-icons/fi";
 import { motion } from "framer-motion";
 
 export function ConversationView({ conversation, transcript }: { conversation: ConversationAnalysis, transcript: TranscriptMessage[] }) {
@@ -45,7 +44,7 @@ export function ConversationView({ conversation, transcript }: { conversation: C
 
                 {/* ANALYSIS CONTEXT (Hidden on mobile, visible on lg) */}
                 <div className="hidden lg:block lg:col-span-7 space-y-6 overflow-y-auto pr-2 pb-20 custom-scrollbar opacity-80 hover:opacity-100 transition-opacity">
-                    <DashboardContent conversation={conversation} transcript={transcript} showChatButton={false} />
+                    <DashboardContent conversation={conversation} transcript={transcript} />
                 </div>
             </motion.div>
         );
@@ -58,10 +57,7 @@ export function ConversationView({ conversation, transcript }: { conversation: C
             animate={{ opacity: 1 }}
             className="max-w-5xl mx-auto pb-20 p-4 lg:p-0"
         >
-            <div className="flex justify-end mb-4">
-                {/* Button removed as per user request - interaction now driven by insights */}
-            </div>
-            <DashboardContent conversation={conversation} transcript={transcript} showChatButton={true} onChatClick={handleChatClick} />
+            <DashboardContent conversation={conversation} transcript={transcript} onChatClick={handleChatClick} />
         </motion.div>
     );
 }
