@@ -14,7 +14,7 @@ interface Message {
     isAudio?: boolean;
 }
 
-export function AssistantChat({ context, topics }: { context?: ConversationAnalysis; topics?: TopicSuggestion[] }) {
+export function AssistantChat({ context, topics, mode }: { context?: ConversationAnalysis; topics?: TopicSuggestion[]; mode?: "conversation" | "global" }) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [chatId, setChatId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");

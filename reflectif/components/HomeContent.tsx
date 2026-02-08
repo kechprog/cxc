@@ -7,15 +7,16 @@ import { DailySnapshot } from "@/components/DailySnapshot";
 import { AssistantChat } from "@/components/AssistantChat";
 import { FiX } from "react-icons/fi";
 import type { ConversationAnalysis } from "@/lib/types";
+import type { UserProgress } from "@/lib/types/progress";
 
 export function HomeContent({
     latestConversationId,
     latestConversation,
-    globalScores,
+    progress,
 }: {
     latestConversationId?: string;
     latestConversation?: ConversationAnalysis;
-    globalScores?: any[];
+    progress?: UserProgress;
 }) {
     const [isActive, setIsActive] = useState(false);
     const [showGlobalChat, setShowGlobalChat] = useState(false);
@@ -46,7 +47,7 @@ export function HomeContent({
                 >
                     <DailySnapshot
                         latestConversation={latestConversation}
-                        globalScores={globalScores}
+                        progress={progress}
                         onObserveClick={() => setShowGlobalChat(true)}
                     />
                 </motion.div>

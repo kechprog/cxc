@@ -5,15 +5,16 @@ import { FiTrendingUp, FiTrendingDown, FiSun, FiActivity, FiClock } from "react-
 import { cn } from "@/lib/utils";
 import { EmotionChart } from "@/components/EmotionChart";
 import type { ConversationAnalysis } from "@/lib/types";
+import type { UserProgress } from "@/lib/types/progress";
 
 export function DailySnapshot({
     latestConversation,
     onObserveClick,
-    globalScores
+    progress
 }: {
     latestConversation?: ConversationAnalysis,
     onObserveClick?: () => void,
-    globalScores?: any[]
+    progress?: UserProgress
 }) {
     const TODAY_DATA = {
         moodEmoji: latestConversation?.emoji ?? "😐",
@@ -27,7 +28,7 @@ export function DailySnapshot({
         },
     };
 
-    const hasGlobalData = globalScores && globalScores.length > 0;
+    const hasProgressData = progress && progress.eq.length > 0;
 
     return (
         <motion.div
@@ -42,15 +43,15 @@ export function DailySnapshot({
             <div className="glass p-4 lg:p-5 rounded-2xl relative overflow-hidden lg:col-span-2 flex flex-col justify-between h-[220px] lg:h-[280px]">
                 <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xs font-semibold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                        <FiClock /> {hasGlobalData ? "Global Emotion Trends" : "Latest Session"}
+                        <FiClock /> {hasProgressData ? "EQ Progress" : "Latest Session"}
                     </h3>
                     <div className="text-[10px] lg:text-xs text-zinc-500 bg-white/5 px-2 py-1 lg:px-3 lg:py-1.5 rounded-full border border-white/5">
-                        {hasGlobalData ? "All Sessions" : "Emotion Distribution"}
+                        {hasProgressData ? "Last 2 Weeks" : "Emotion Distribution"}
                     </div>
                 </div>
                 <div className="flex-1 w-full min-h-[150px] relative">
                     <div className="absolute inset-0">
-                        <EmotionChart data={hasGlobalData ? globalScores : (latestConversation?.scores || [])} className="h-full" />
+                        <EmotionChart data={hasProgressData ? progress.eq : (latestConversation?.scores || [])} className="h-full" />
                     </div>
                 </div>
             </div>
