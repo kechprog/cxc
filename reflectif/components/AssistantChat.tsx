@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { FiMic, FiSend, FiUser, FiCpu, FiStopCircle } from "react-icons/fi";
 import { cn } from "@/lib/utils";
-import { ConversationAnalysis } from "@/lib/data";
+import type { ConversationAnalysis } from "@/lib/types/conversation";
+import type { TopicSuggestion } from "@/lib/types/chat";
 
 interface Message {
     id: string;
@@ -13,129 +14,25 @@ interface Message {
     isAudio?: boolean;
 }
 
-export function AssistantChat({ context, initialInsight, mode = "insight" }: { context?: ConversationAnalysis, initialInsight?: string, mode?: "insight" | "global" }) {
+export function AssistantChat({ context, topics }: { context?: ConversationAnalysis; topics?: TopicSuggestion[] }) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [chatId, setChatId] = useState<string | null>(null);
     const [inputValue, setInputValue] = useState("");
     const [isRecording, setIsRecording] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
+    const [pendingContextPrompt, setPendingContextPrompt] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const isGeneratingRef = useRef(false);
 
+    // Show context-specific welcome message (conversation-scoped chat only)
     useEffect(() => {
-        console.log("[AssistantChat] Effect Run.", {
-            insight: initialInsight,
-            contextId: context?.id,
-            msgCount: messages.length,
-            isThinking,
-            isGenerating: isGeneratingRef.current,
-            mode
-        });
-
-        if (messages.length === 0 && !isGeneratingRef.current) {
-            if (mode === "global") {
-                console.log("[AssistantChat] Triggering Global Observation chat...");
-                isGeneratingRef.current = true;
-
-                const generateGlobalStarter = async () => {
-                    setIsThinking(true);
-                    try {
-                        const res = await fetch("/api/chat", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                mode: "global",
-                                message: `[SYSTEM INSTRUCTION] The user wants to 'Observe Themselves' based on all available data. \n\nGoal: Start a short, easy-to-understand conversation about the user's overall patterns as if you are a compassionate Psychology Professor. \n\nRules:\n1. Keep it BRIEF (under 2 sentences) and use simple, everyday language.\n2. Adopt a warm, accessible tone.\n3. Reference their 'Core User File' data if useful.\n4. Ask one simple question to help the user reflect.`
-                            }),
-                        });
-
-                        if (!res.ok) {
-                            const errText = await res.text();
-                            throw new Error(`Failed to generate starter: ${res.status} ${errText}`);
-                        }
-
-                        const data = await res.json();
-                        if (!data.content) throw new Error("Empty response from AI");
-
-                        setChatId(data.chatId);
-                        setMessages([{
-                            id: "welcome",
-                            role: "assistant",
-                            text: data.content
-                        }]);
-                    } catch (err) {
-                        console.error("Error generating global starter:", err);
-                        setMessages([{
-                            id: "welcome",
-                            role: "assistant",
-                            text: "I'm ready to help you observe your patterns and growth based on your history. What's on your mind?"
-                        }]);
-                    } finally {
-                        setIsThinking(false);
-                        isGeneratingRef.current = false;
-                    }
-                };
-                generateGlobalStarter();
-            } else if (initialInsight && context) {
-                console.log("[AssistantChat] Triggering AI generation for insight...");
-                isGeneratingRef.current = true;
-
-                const generateStarter = async () => {
-                    setIsThinking(true);
-                    try {
-                        const res = await fetch("/api/chat", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                message: `[SYSTEM INSTRUCTION] The user clicked on this insight from their recent conversation: "${initialInsight}". \n\nGoal: Start a short, easy-to-understand conversation about this topic as if you are a compassionate Psychology Professor. \n\nRules:\n1. Keep it BRIEF (under 2 sentences) and use simple, everyday language.\n2. Adopt a warm, accessible tone.\n3. Do NOT say "I noticed you clicked..." or "Here is an insight...".\n4. Start naturally by explaining the concept simply.\n5. Ask one simple question to help the user reflect.`,
-                                conversationAnalysisId: context.id
-                            }),
-                        });
-
-                        if (!res.ok) {
-                            const errText = await res.text();
-                            throw new Error(`Failed to generate starter: ${res.status} ${errText}`);
-                        }
-
-                        const data = await res.json();
-                        if (!data.content) throw new Error("Empty response from AI");
-
-                        setChatId(data.chatId);
-                        setMessages([{
-                            id: "welcome",
-                            role: "assistant",
-                            text: data.content
-                        }]);
-                    } catch (err) {
-                        console.error("[AssistantChat] Error generating starter:", err);
-                        setMessages([{
-                            id: "welcome",
-                            role: "assistant",
-                            text: `I noticed this insight from your recent conversation:\n\n**"${initialInsight}"**\n\nLet's explore this together.`
-                        }]);
-                    } finally {
-                        setIsThinking(false);
-                        isGeneratingRef.current = false;
-                    }
-                };
-                generateStarter();
-            } else if (context) {
-                console.log("[AssistantChat] Setting default context message");
-                setMessages([{
-                    id: "welcome",
-                    role: "assistant",
-                    text: `During this conversation, it would be great to observe your **${context.label}** pattern. \n\nI noticed distinct phases of ${context.dynamics.map(d => d.phase).join(" and ")}. \n\nWhat do you think triggered the shift?`
-                }]);
-            } else {
-                console.log("[AssistantChat] Setting default no-context message");
-                setMessages([{
-                    id: "welcome",
-                    role: "assistant",
-                    text: "Over the last 7 days, you've been consistent with self-reflection. \n\nHowever, I've observed a recurring theme of high anxiety in the evenings. \n\nLet's observe this pattern together. How have you been feeling after work this week?"
-                }]);
-            }
+        if (messages.length === 0 && context) {
+            setMessages([{
+                id: "welcome",
+                role: "assistant",
+                text: `During this conversation, it would be great to observe your **${context.label}** pattern. \n\nI noticed distinct phases of ${context.dynamics.map(d => d.phase).join(" and ")}. \n\nWhat do you think triggered the shift?`
+            }]);
         }
-    }, [context?.id, initialInsight, mode]);
+    }, [context]);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -145,7 +42,7 @@ export function AssistantChat({ context, initialInsight, mode = "insight" }: { c
         scrollToBottom();
     }, [messages, isThinking]);
 
-    const sendUserMessage = async (text: string) => {
+    const sendUserMessage = async (text: string, contextPromptOverride?: string) => {
         if (!text.trim() || isThinking) return;
 
         const userMsg: Message = {
@@ -157,15 +54,24 @@ export function AssistantChat({ context, initialInsight, mode = "insight" }: { c
         setInputValue("");
         setIsThinking(true);
 
+        // Use override if provided, otherwise use pending context prompt
+        const ctxPrompt = contextPromptOverride ?? pendingContextPrompt;
+        if (pendingContextPrompt) setPendingContextPrompt(null);
+
         try {
+            const body: Record<string, string | undefined> = {
+                message: text.trim(),
+                chatId: chatId ?? undefined,
+                conversationAnalysisId: context?.id,
+            };
+            if (ctxPrompt && !chatId) {
+                body.contextPrompt = ctxPrompt;
+            }
+
             const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    message: text.trim(),
-                    chatId,
-                    conversationAnalysisId: context?.id,
-                }),
+                body: JSON.stringify(body),
             });
 
             const data = await res.json();
@@ -174,7 +80,6 @@ export function AssistantChat({ context, initialInsight, mode = "insight" }: { c
                 throw new Error(data.error || "Chat request failed");
             }
 
-            // Persist chatId for subsequent messages
             if (data.chatId && !chatId) {
                 setChatId(data.chatId);
             }
@@ -198,6 +103,10 @@ export function AssistantChat({ context, initialInsight, mode = "insight" }: { c
         }
     };
 
+    const handleTopicClick = (topic: TopicSuggestion) => {
+        sendUserMessage(topic.label, topic.contextPrompt);
+    };
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
@@ -208,16 +117,44 @@ export function AssistantChat({ context, initialInsight, mode = "insight" }: { c
     const toggleRecording = () => {
         if (isRecording) {
             setIsRecording(false);
-            // TODO: integrate actual audio transcription
         } else {
             setIsRecording(true);
         }
     };
 
+    const showTopics = !context && topics && topics.length > 0 && messages.length === 0 && !isThinking;
+
     return (
         <div className="flex flex-col h-full relative">
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 lg:space-y-6 pb-4">
+
+                {/* Topic Bubbles (shown when no messages yet, no context) */}
+                {showTopics && (
+                    <div className="flex flex-col items-center justify-center h-full gap-6 py-8">
+                        <p className="text-sm text-zinc-500 uppercase tracking-widest">What would you like to explore?</p>
+                        <div className="flex flex-col gap-3 w-full max-w-md">
+                            {topics.map((topic, i) => (
+                                <motion.button
+                                    key={i}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.1 }}
+                                    onClick={() => handleTopicClick(topic)}
+                                    className="text-left p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-violet-500/40 hover:bg-violet-500/5 transition-all group"
+                                >
+                                    <div className="text-sm font-medium text-white group-hover:text-violet-200 transition-colors">
+                                        {topic.label}
+                                    </div>
+                                    <div className="text-xs text-zinc-500 mt-1">
+                                        {topic.description}
+                                    </div>
+                                </motion.button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
                 {messages.map((msg) => (
                     <motion.div
                         key={msg.id}
@@ -274,23 +211,13 @@ export function AssistantChat({ context, initialInsight, mode = "insight" }: { c
                 )}
 
                 <div ref={messagesEndRef} className="h-1" />
-
-                {messages.length === 0 && !isThinking && (
-                    <div className="text-center text-red-400 p-10 font-mono text-xs">
-                        DEBUG: No messages loaded.
-                        <br />
-                        Insight: {initialInsight ? "YES" : "NO"}
-                        <br />
-                        Context: {context ? "YES" : "NO"}
-                    </div>
-                )}
             </div>
 
             {/* Input Area */}
             <div className="p-3 lg:p-6 border-t border-white/5 bg-black/40 backdrop-blur-xl shrink-0">
                 <div className="flex items-center gap-3 lg:gap-4 max-w-2xl mx-auto">
 
-                    {/* Mic Button (Main Interaction) */}
+                    {/* Mic Button */}
                     <button
                         onClick={toggleRecording}
                         className={cn(
@@ -306,7 +233,7 @@ export function AssistantChat({ context, initialInsight, mode = "insight" }: { c
                         {isRecording ? <FiStopCircle size={24} /> : <FiMic size={24} />}
                     </button>
 
-                    {/* Text Input (Secondary) */}
+                    {/* Text Input */}
                     <div className="flex-1 relative">
                         <input
                             type="text"

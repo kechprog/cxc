@@ -4,9 +4,8 @@ import { ConversationAnalysis } from "@/lib/types/conversation";
 import { TranscriptMessage } from "@/lib/types";
 import { EmotionChart } from "@/components/EmotionChart";
 import { FiActivity, FiCheckCircle, FiMessageCircle } from "react-icons/fi";
-import { cn } from "@/lib/utils";
 
-export function DashboardContent({ conversation, showChatButton, onChatClick }: { conversation: ConversationAnalysis, transcript?: TranscriptMessage[], showChatButton?: boolean, onChatClick?: (insight?: string) => void }) {
+export function DashboardContent({ conversation, showChatButton, onChatClick }: { conversation: ConversationAnalysis, transcript?: TranscriptMessage[], showChatButton?: boolean, onChatClick?: () => void }) {
     const insights = conversation.dynamics
         .filter((phase) => phase.insight)
         .map((phase) => phase.insight!);
@@ -54,15 +53,8 @@ export function DashboardContent({ conversation, showChatButton, onChatClick }: 
                             </h2>
                             <ul className="space-y-3">
                                 {insights.map((insight, i) => (
-                                    <li
-                                        key={i}
-                                        onClick={() => onChatClick?.(insight)}
-                                        className={cn(
-                                            "flex gap-3 items-start text-sm text-zinc-300 rounded-xl p-3 transition-all",
-                                            onChatClick && "cursor-pointer hover:bg-white/5 hover:text-white group"
-                                        )}
-                                    >
-                                        <span className="text-amber-400 mt-0.5 flex-shrink-0 group-hover:scale-110 transition-transform">•</span>
+                                    <li key={i} className="flex gap-3 items-start text-sm text-zinc-300">
+                                        <span className="text-amber-400 mt-0.5 flex-shrink-0">•</span>
                                         <span>{insight}</span>
                                     </li>
                                 ))}

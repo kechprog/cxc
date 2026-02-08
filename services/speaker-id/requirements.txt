@@ -1,8 +1,6 @@
-torch>=2.0,<2.6
-torchaudio>=2.0,<2.6
-speechbrain>=0.5.16,<1.1
-huggingface_hub<0.26
-requests
+torch
+torchaudio
+speechbrain
 soundfile
 fastapi
 uvicorn[standard]

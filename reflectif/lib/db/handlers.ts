@@ -155,13 +155,6 @@ export class DbHandlers {
        VALUES (?, ?, ?, ?, ?, ?, ?)`
     );
 
-    console.log("Inserting conversation analysis:", analysis.id);
-    if (analysis.dynamics && analysis.dynamics.length > 0) {
-      console.log("Inserting phases with insights:", JSON.stringify(analysis.dynamics.map(d => ({ phase: d.phase, insight: d.insight })), null, 2));
-    } else {
-      console.warn("No dynamics/phases to insert for conversation:", analysis.id);
-    }
-
     const run = this.db.transaction(() => {
       insertAnalysis.run(
         analysis.id,
@@ -225,9 +218,9 @@ export class DbHandlers {
          ORDER BY analyzed_at DESC`
       )
       .all(userId) as Pick<
-        ConversationAnalysisRow,
-        "id" | "analyzed_at" | "emoji" | "label" | "summary"
-      >[];
+      ConversationAnalysisRow,
+      "id" | "analyzed_at" | "emoji" | "label" | "summary"
+    >[];
 
     return rows.map((r) => ({
       id: r.id,
@@ -243,14 +236,6 @@ export class DbHandlers {
     this.db
       .prepare(`DELETE FROM conversation_analyses WHERE id = ?`)
       .run(id);
-  }
-
-  getGlobalUserEmotions(userId: string): any[] {
-    const rows = this.db
-      .prepare(`SELECT scores FROM conversation_analyses WHERE user_id = ?`)
-      .all(userId) as { scores: string }[];
-
-    return rows.map(r => JSON.parse(r.scores)).flat();
   }
 
   // ── Chats ─────────────────────────────────────────────
@@ -311,6 +296,42 @@ export class DbHandlers {
       .prepare(`SELECT user_id, thread_id, assistant_id FROM chats WHERE id = ?`)
       .get(chatId) as { user_id: string; thread_id: string; assistant_id: string } | undefined;
     return row ? { userId: row.user_id, threadId: row.thread_id, assistantId: row.assistant_id } : null;
+  }
+
+  getConversationAnalysesInWindow(
+    userId: string,
+    since: string
+  ): ConversationAnalysisWithTranscripts[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM conversation_analyses
+         WHERE user_id = ? AND analyzed_at >= ?
+         ORDER BY analyzed_at ASC`
+      )
+      .all(userId, since) as ConversationAnalysisRow[];
+
+    if (rows.length === 0) return [];
+
+    const ids = rows.map((r) => r.id);
+    const placeholders = ids.map(() => "?").join(",");
+    const allPhaseRows = this.db
+      .prepare(
+        `SELECT * FROM conversation_phases
+         WHERE conversation_analysis_id IN (${placeholders})
+         ORDER BY start_time`
+      )
+      .all(...ids) as ConversationPhaseRow[];
+
+    const phasesByAnalysis = new Map<string, ConversationPhaseRow[]>();
+    for (const phase of allPhaseRows) {
+      const existing = phasesByAnalysis.get(phase.conversation_analysis_id) || [];
+      existing.push(phase);
+      phasesByAnalysis.set(phase.conversation_analysis_id, existing);
+    }
+
+    return rows.map((row) =>
+      conversationAnalysisFromRow(row, phasesByAnalysis.get(row.id) || [])
+    );
   }
 
   getConversationAnalysisOwnerId(id: string): string | null {
