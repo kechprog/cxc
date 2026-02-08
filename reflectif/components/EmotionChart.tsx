@@ -31,7 +31,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                                     <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
                                     <span className="text-zinc-200">{entry.name}</span>
                                 </div>
-                                <span className="font-mono text-zinc-400">{toPercent(entry.value, 1)}</span>
+                                <span className="font-mono text-zinc-400">{toPercent(entry.value, 0)}</span>
                             </div>
                         )
                     ))}
@@ -89,11 +89,30 @@ export function EmotionChart({ data = [], className }: { data?: any[], className
             .map(([k]) => k);
     }
 
+    // Normalize data for 100% stacked chart logic (but visualized as lines)
+    const normalizedData = chartData.map((item) => {
+        const newItem = { ...item };
+        let sum = 0;
+        topEmotions.forEach(key => {
+            const val = newItem[key];
+            if (typeof val === "number") sum += val;
+        });
+
+        if (sum > 0) {
+            topEmotions.forEach(key => {
+                if (typeof newItem[key] === "number") {
+                    newItem[key] = newItem[key] / sum;
+                }
+            });
+        }
+        return newItem;
+    });
+
     return (
         <div className={cn("w-full h-full", className)}>
             <ResponsiveContainer width="100%" height="100%">
                 <LineChart
-                    data={chartData}
+                    data={normalizedData}
                     margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
                 >
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -106,7 +125,7 @@ export function EmotionChart({ data = [], className }: { data?: any[], className
                         interval={3}
                     />
                     <YAxis
-                        tickFormatter={toPercent}
+                        tickFormatter={(value) => toPercent(value, 0)}
                         stroke="#52525b"
                         tick={{ fill: "#52525b", fontSize: 10 }}
                         tickLine={false}

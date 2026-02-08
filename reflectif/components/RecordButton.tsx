@@ -214,7 +214,7 @@ export function RecordButton({ latestConversationId, onRecordingChange }: { late
                         <h2 className="text-2xl lg:text-4xl font-light text-white tracking-tight">
                             How are you feeling?
                         </h2>
-                        <p className="text-sm lg:text-base text-zinc-400">Press to start a conversation with yourself.</p>
+                        <p className="text-sm lg:text-base text-zinc-400">Press to start a conversation.</p>
                     </motion.div>
                 )}
             </AnimatePresence>
