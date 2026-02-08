@@ -12,10 +12,12 @@ export function Sidebar({
     conversations,
     isOpen,
     onClose,
+    profileComplete,
 }: {
     conversations: ConversationAnalysisListItem[];
     isOpen: boolean;
     onClose: () => void;
+    profileComplete: boolean;
 }) {
     const pathname = usePathname();
 
@@ -111,15 +113,17 @@ export function Sidebar({
 
             {/* Footer / Profile */}
             <div className="p-4 border-t border-white/10 space-y-1">
-                <Link
-                    href="/profile-setup"
-                    className="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-all duration-200 group"
-                >
-                    <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/30 transition-colors">
-                        <FiUser className="text-violet-400" />
-                    </div>
-                    <span className="font-medium text-sm">Set Up Profile</span>
-                </Link>
+                {!profileComplete && (
+                    <Link
+                        href="/profile-setup"
+                        className="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-all duration-200 group"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-violet-500/20 flex items-center justify-center group-hover:bg-violet-500/30 transition-colors">
+                            <FiUser className="text-violet-400" />
+                        </div>
+                        <span className="font-medium text-sm">Set Up Profile</span>
+                    </Link>
+                )}
                 <a
                     href="/auth/logout"
                     className="flex items-center gap-3 p-3 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-white/5 transition-all duration-200 group"

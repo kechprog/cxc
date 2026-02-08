@@ -5,33 +5,41 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FiMic, FiCheck, FiUser } from "react-icons/fi";
 import { cn } from "@/lib/utils";
 import { encodeWav } from "@/lib/audio/encode-wav";
+import { INTERVIEW_PROMPTS } from "@/lib/constants/interview";
 
 type SetupStep = "intro" | "voice_sample_1" | "voice_sample_2" | "ai_interview" | "complete";
 
-export function ProfileSetupView() {
+const DEFAULT_PASSAGE_1 =
+    "I understand that emotional intelligence is a skill that can be developed through practice and self-awareness. By recording my conversations and reflecting on my communication patterns, I can better understand my emotional triggers, strengthen my relationships, and grow as a more effective communicator. I give my full permission for Reflectif to analyze my speech patterns, emotional responses, and conversational dynamics to help me on this journey of personal growth and emotional development. I believe that understanding myself better is the first step toward meaningful change.";
+
+const DEFAULT_PASSAGE_2 =
+    "Communication is at the heart of every meaningful relationship in my life. Whether I'm talking with family members, close friends, or professional colleagues, understanding my emotional state and how it affects my words can transform these interactions in powerful ways. I'm ready to explore my communication style with honesty, curiosity, and an open mind, recognizing that every conversation is an opportunity to learn more about myself and connect more authentically with the people who matter most. This is my personal commitment to growth and self-discovery through Reflectif.";
+
+export function ProfileSetupView({ onComplete }: { onComplete?: () => void } = {}) {
     const [step, setStep] = useState<SetupStep>("intro");
     const [isRecording, setIsRecording] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [recordingTime, setRecordingTime] = useState(0);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [savedProfile, setSavedProfile] = useState<Record<string, string> | null>(null);
+
+    // Voice sample state
+    const [voicePassage1, setVoicePassage1] = useState(DEFAULT_PASSAGE_1);
+    const [voicePassage2, setVoicePassage2] = useState(DEFAULT_PASSAGE_2);
+    const [voiceRetryCount, setVoiceRetryCount] = useState(0);
 
     // AI Interview state
-    const [aiMessages, setAiMessages] = useState<Array<{ role: "assistant" | "user", text: string }>>([]);
+    const [aiMessages, setAiMessages] = useState<Array<{ role: "assistant" | "user"; text: string }>>([]);
     const [currentQuestion, setCurrentQuestion] = useState(0);
-    const [threadId, setThreadId] = useState<string | null>(null);
-    const [assistantId, setAssistantId] = useState<string | null>(null);
+    const [interviewAnswers, setInterviewAnswers] = useState<Array<{ question: string; answer: string }>>([]);
+    const [previousAttempts, setPreviousAttempts] = useState<string[]>([]);
+    const [totalQuestionsAsked, setTotalQuestionsAsked] = useState(1); // starts at 1 (first question shown)
+    const MAX_TOTAL_QUESTIONS = 5;
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
-
-    const INTERVIEW_PROMPTS = [
-        "What brings you to Reflectif? What do you hope to learn about yourself?",
-        "Think about your closest relationships. What communication patterns do you notice?",
-        "What emotional triggers do you recognize in yourself? When do you feel most reactive?",
-        "What are your current goals? What challenges are you facing right now?",
-        "How would you describe your typical stress responses or coping mechanisms?"
-    ];
 
     useEffect(() => {
         return () => {
@@ -44,6 +52,7 @@ export function ProfileSetupView() {
 
     const startRecording = useCallback(async () => {
         try {
+            setErrorMessage(null);
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             streamRef.current = stream;
 
@@ -64,104 +73,113 @@ export function ProfileSetupView() {
             }, 1000);
         } catch (err) {
             console.error("Failed to start recording:", err);
+            setErrorMessage("Could not access microphone. Please check permissions.");
         }
     }, []);
 
-    const stopRecording = useCallback(async (endpoint: string) => {
-        const mediaRecorder = mediaRecorderRef.current;
-        if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+    const stopAndGetWav = useCallback((): Promise<Blob> => {
+        return new Promise((resolve, reject) => {
+            const mediaRecorder = mediaRecorderRef.current;
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                reject(new Error("No active recording"));
+                return;
+            }
 
-        return new Promise<void>((resolve) => {
             mediaRecorder.onstop = async () => {
                 if (timerRef.current) {
                     clearInterval(timerRef.current);
                     timerRef.current = null;
                 }
-
                 if (streamRef.current) {
                     streamRef.current.getTracks().forEach((t) => t.stop());
                     streamRef.current = null;
                 }
 
-                // Convert to WAV
-                const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
-                const audioCtx = new AudioContext();
-                const arrayBuffer = await blob.arrayBuffer();
-                const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-                const wavBuffer = encodeWav(audioBuffer);
-                const wavBlob = new Blob([wavBuffer], { type: "audio/wav" });
-                await audioCtx.close();
-
-                // Upload
                 try {
-                    setIsProcessing(true);
-                    const formData = new FormData();
-                    formData.append("audio", wavBlob, `profile_${step}_${Date.now()}.wav`);
-
-                    const res = await fetch(endpoint, {
-                        method: "POST",
-                        body: formData,
-                    });
-                    const data = await res.json();
-                    console.log("Upload response:", data);
-
-                    // Move to next step after processing
-                    setTimeout(() => {
-                        setIsProcessing(false);
-                        if (step === "voice_sample_1") setStep("voice_sample_2");
-                        else if (step === "voice_sample_2") {
-                            setStep("ai_interview");
-                            setAiMessages([{ role: "assistant", text: INTERVIEW_PROMPTS[0] }]);
-                        }
-                    }, 1500);
+                    const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
+                    const audioCtx = new AudioContext();
+                    const arrayBuffer = await blob.arrayBuffer();
+                    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+                    const wavBuffer = encodeWav(audioBuffer);
+                    const wavBlob = new Blob([wavBuffer], { type: "audio/wav" });
+                    await audioCtx.close();
+                    resolve(wavBlob);
                 } catch (err) {
-                    console.error("Upload failed:", err);
-                    setIsProcessing(false);
-                } finally {
-                    resolve();
+                    reject(err);
                 }
             };
 
             mediaRecorder.stop();
         });
-    }, [step]);
+    }, []);
 
     const handleVoiceSampleRecord = async () => {
         if (isRecording) {
             setIsRecording(false);
+            setIsProcessing(true);
+            setErrorMessage(null);
 
-            // Stop recording and cleanup
-            const mediaRecorder = mediaRecorderRef.current;
-            if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+            try {
+                const wavBlob = await stopAndGetWav();
+                const formData = new FormData();
+                formData.append("audio", wavBlob, `voice_${step}_${Date.now()}.wav`);
 
-            mediaRecorder.onstop = async () => {
-                if (timerRef.current) {
-                    clearInterval(timerRef.current);
-                    timerRef.current = null;
-                }
-                if (streamRef.current) {
-                    streamRef.current.getTracks().forEach((t) => t.stop());
-                    streamRef.current = null;
-                }
+                if (step === "voice_sample_1") {
+                    // Enroll voice
+                    const res = await fetch("/api/voice-id/enroll", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    const data = await res.json();
 
-                // Just log completion and move to next step
-                setIsProcessing(true);
-                console.log(`✓ ${step} completed`);
+                    if (!res.ok || !data.success) {
+                        setErrorMessage(data.error ?? "Voice enrollment failed. Please try again.");
+                        setIsProcessing(false);
+                        return;
+                    }
 
-                setTimeout(() => {
+                    console.log("Voice enrolled:", data.voiceId);
                     setIsProcessing(false);
-                    if (step === "voice_sample_1") {
-                        console.log("Moving to Step 2...");
-                        setStep("voice_sample_2");
-                    } else if (step === "voice_sample_2") {
-                        console.log("Moving to AI Interview...");
+                    setStep("voice_sample_2");
+                } else if (step === "voice_sample_2") {
+                    // Verify voice
+                    const res = await fetch("/api/voice-id/verify", {
+                        method: "POST",
+                        body: formData,
+                    });
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        setErrorMessage(data.reason ?? "Voice verification failed. Please try again.");
+                        setIsProcessing(false);
+                        return;
+                    }
+
+                    if (data.verified) {
+                        console.log("Voice verified, score:", data.score);
+                        setIsProcessing(false);
                         setStep("ai_interview");
                         setAiMessages([{ role: "assistant", text: INTERVIEW_PROMPTS[0] }]);
+                    } else {
+                        // Verification failed — update passages and loop back
+                        console.log("Voice verification failed:", data.reason);
+                        setVoiceRetryCount((c) => c + 1);
+                        if (data.newPassage) {
+                            setVoicePassage1(data.newPassage);
+                            setVoicePassage2(DEFAULT_PASSAGE_2);
+                        }
+                        setErrorMessage(
+                            data.reason ?? "Voice verification failed. Please re-record both samples."
+                        );
+                        setIsProcessing(false);
+                        setStep("voice_sample_1");
                     }
-                }, 1500);
-            };
-
-            mediaRecorder.stop();
+                }
+            } catch (err) {
+                console.error("Voice sample processing failed:", err);
+                setErrorMessage("An error occurred. Please try again.");
+                setIsProcessing(false);
+            }
         } else {
             await startRecording();
         }
@@ -170,46 +188,100 @@ export function ProfileSetupView() {
     const handleAIInterviewRecord = async () => {
         if (isRecording) {
             setIsRecording(false);
-            const mediaRecorder = mediaRecorderRef.current;
-            if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+            setIsProcessing(true);
+            setErrorMessage(null);
 
-            mediaRecorder.onstop = async () => {
-                if (timerRef.current) {
-                    clearInterval(timerRef.current);
-                    timerRef.current = null;
+            try {
+                const wavBlob = await stopAndGetWav();
+                const formData = new FormData();
+                formData.append("audio", wavBlob, `interview_q${currentQuestion}_${Date.now()}.wav`);
+                formData.append("questionIndex", String(currentQuestion));
+                formData.append("previousAttempts", JSON.stringify(previousAttempts));
+
+                const res = await fetch("/api/profile/setup/answer", {
+                    method: "POST",
+                    body: formData,
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    setErrorMessage(data.error ?? "Failed to process answer. Please try again.");
+                    setIsProcessing(false);
+                    return;
                 }
-                if (streamRef.current) {
-                    streamRef.current.getTracks().forEach((t) => t.stop());
-                    streamRef.current = null;
-                }
 
-                // Convert to WAV (could send to chat API for transcription if needed)
-                const blob = new Blob(chunksRef.current, { type: mediaRecorder.mimeType });
+                // Show the transcription as user message
+                setAiMessages((prev) => [...prev, { role: "user", text: data.transcription }]);
 
-                // For now, just simulate AI response
-                // TODO: Integrate with /api/chat using audio transcription
-                setIsProcessing(true);
+                // Accept the answer (either satisfactory, or we've hit the question cap)
+                const atQuestionLimit = totalQuestionsAsked >= MAX_TOTAL_QUESTIONS;
 
-                // Mock user message
-                const userMessage = "User's spoken answer...";
-                setAiMessages(prev => [...prev, { role: "user", text: userMessage }]);
+                if (data.satisfied || atQuestionLimit) {
+                    const acceptedAnswer = {
+                        question: INTERVIEW_PROMPTS[currentQuestion],
+                        answer: data.transcription,
+                    };
+                    const updatedAnswers = [...interviewAnswers, acceptedAnswer];
+                    setInterviewAnswers(updatedAnswers);
+                    setPreviousAttempts([]);
 
-                // Simulate AI processing
-                setTimeout(() => {
                     const nextQuestion = currentQuestion + 1;
-                    if (nextQuestion < INTERVIEW_PROMPTS.length) {
-                        setAiMessages(prev => [...prev, { role: "assistant", text: INTERVIEW_PROMPTS[nextQuestion] }]);
+                    if (nextQuestion < INTERVIEW_PROMPTS.length && !atQuestionLimit) {
+                        setTotalQuestionsAsked((c) => c + 1);
+                        setAiMessages((prev) => [
+                            ...prev,
+                            { role: "assistant", text: INTERVIEW_PROMPTS[nextQuestion] },
+                        ]);
                         setCurrentQuestion(nextQuestion);
                     } else {
-                        setStep("complete");
+                        // All questions answered or limit reached — complete profile
+                        setAiMessages((prev) => [
+                            ...prev,
+                            { role: "assistant", text: "Thank you for sharing. Building your profile..." },
+                        ]);
+                        await completeProfile(updatedAnswers);
                     }
-                    setIsProcessing(false);
-                }, 2000);
-            };
+                } else {
+                    // Not satisfactory — show follow-up and stay on same question
+                    setTotalQuestionsAsked((c) => c + 1);
+                    setPreviousAttempts((prev) => [...prev, data.transcription]);
+                    setAiMessages((prev) => [
+                        ...prev,
+                        { role: "assistant", text: data.followUp ?? "Could you tell me more about that?" },
+                    ]);
+                }
 
-            mediaRecorder.stop();
+                setIsProcessing(false);
+            } catch (err) {
+                console.error("Interview answer processing failed:", err);
+                setErrorMessage("An error occurred. Please try again.");
+                setIsProcessing(false);
+            }
         } else {
             await startRecording();
+        }
+    };
+
+    const completeProfile = async (answers: Array<{ question: string; answer: string }>) => {
+        try {
+            const res = await fetch("/api/profile/setup/complete", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ answers }),
+            });
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                setErrorMessage(data.error ?? "Failed to build profile. Please try again.");
+                return;
+            }
+
+            console.log("Profile created:", data.profile);
+            setSavedProfile(data.profile);
+            setStep("complete");
+        } catch (err) {
+            console.error("Profile completion failed:", err);
+            setErrorMessage("Failed to save profile. Please try again.");
         }
     };
 
@@ -240,7 +312,7 @@ export function ProfileSetupView() {
                         </div>
 
                         <div>
-                            <h1 className="text-3xl font-light text-white mb-4">Let's Get to Know You</h1>
+                            <h1 className="text-3xl font-light text-white mb-4">Let&apos;s Get to Know You</h1>
                             <p className="text-zinc-400 max-w-md mx-auto leading-relaxed">
                                 To provide personalized coaching, I need to learn your voice patterns and understand your goals.
                             </p>
@@ -257,7 +329,7 @@ export function ProfileSetupView() {
 
                 {(step === "voice_sample_1" || step === "voice_sample_2") && (
                     <motion.div
-                        key="voice_sample"
+                        key={`voice_sample_${voiceRetryCount}`}
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 1.05 }}
@@ -267,13 +339,23 @@ export function ProfileSetupView() {
                         <div>
                             <h2 className="text-sm font-semibold text-violet-400 uppercase tracking-widest mb-4">
                                 {step === "voice_sample_1" ? "Step 1: Voice Sample" : "Step 2: Voice Confirmation"}
+                                {voiceRetryCount > 0 && (
+                                    <span className="ml-2 text-amber-400">(Retry #{voiceRetryCount})</span>
+                                )}
                             </h2>
                             <h1 className="text-xl lg:text-2xl font-light text-white leading-relaxed">
                                 {step === "voice_sample_1"
-                                    ? "Please read the following passage aloud at a natural, comfortable pace: \"I understand that emotional intelligence is a skill that can be developed through practice and self-awareness. By recording my conversations and reflecting on my communication patterns, I can better understand my emotional triggers, strengthen my relationships, and grow as a more effective communicator. I give my full permission for Reflectif to analyze my speech patterns, emotional responses, and conversational dynamics to help me on this journey of personal growth and emotional development. I believe that understanding myself better is the first step toward meaningful change.\""
-                                    : "Please read this second passage aloud to confirm your voice profile: \"Communication is at the heart of every meaningful relationship in my life. Whether I'm talking with family members, close friends, or professional colleagues, understanding my emotional state and how it affects my words can transform these interactions in powerful ways. I'm ready to explore my communication style with honesty, curiosity, and an open mind, recognizing that every conversation is an opportunity to learn more about myself and connect more authentically with the people who matter most. This is my personal commitment to growth and self-discovery through Reflectif.\""}
+                                    ? `Please read the following passage aloud at a natural, comfortable pace: "${voicePassage1}"`
+                                    : `Please read this second passage aloud to confirm your voice profile: "${voicePassage2}"`}
                             </h1>
                         </div>
+
+                        {/* Error message */}
+                        {errorMessage && (
+                            <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+                                {errorMessage}
+                            </div>
+                        )}
 
                         {/* Recording Controls */}
                         <div className="flex flex-col items-center justify-center gap-6 min-h-[160px]">
@@ -285,7 +367,7 @@ export function ProfileSetupView() {
                                         ))}
                                     </div>
                                     <p className="text-xs text-zinc-500 uppercase tracking-widest">
-                                        Saving Voice Sample...
+                                        {step === "voice_sample_1" ? "Enrolling Voice..." : "Verifying Voice..."}
                                     </p>
                                 </div>
                             ) : (
@@ -353,6 +435,13 @@ export function ProfileSetupView() {
                             ))}
                         </div>
 
+                        {/* Error message */}
+                        {errorMessage && (
+                            <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+                                {errorMessage}
+                            </div>
+                        )}
+
                         {/* Recording Controls */}
                         <div className="flex flex-col items-center justify-center gap-6">
                             {isProcessing ? (
@@ -415,9 +504,12 @@ export function ProfileSetupView() {
                         </div>
 
                         <div className="pt-6">
-                            <a href="/" className="text-sm text-zinc-300 hover:text-white underline underline-offset-4">
-                                Return to Dashboard
-                            </a>
+                            <button
+                                onClick={() => onComplete?.()}
+                                className="bg-white text-black px-8 py-3 rounded-full font-medium hover:scale-105 transition-transform"
+                            >
+                                Continue to Dashboard
+                            </button>
                         </div>
                     </motion.div>
                 )}
